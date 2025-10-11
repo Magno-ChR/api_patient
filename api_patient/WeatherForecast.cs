@@ -2,6 +2,7 @@ namespace api_patient
 {
     public class WeatherForecast
     {
+        //ejemplo
         public DateOnly Date { get; set; }
 
         public int TemperatureC { get; set; }
