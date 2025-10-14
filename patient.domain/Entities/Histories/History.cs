@@ -25,6 +25,7 @@ namespace patient.domain.Entities.Histories
         private readonly List<Evolution> _evolutions = new();
         public IReadOnlyCollection<Evolution> Evolutions => _evolutions.AsReadOnly();
 
+        //internal si no tiene validaciones y si tiene es public
         public History(Guid id, Guid patientId, Guid foodPlanId, string reason, string diagnostic, string treatment)
         : base(id)
         {
