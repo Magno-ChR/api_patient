@@ -11,7 +11,7 @@ namespace patient.domain.Abstractions
     {
         public Guid Id { get; set; }
         public DateTime OccurredOn { get; set; }
-
+        
         public DomainEvent()
         {
             Id = Guid.NewGuid();
