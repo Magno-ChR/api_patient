@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace patient.domain.Abstractions
+namespace patient.domain.Abstractions;
+
+public interface IUnitOfWork
 {
-    public interface IUnitOfWork
-    {
-        Task CommitAsync(CancellationToken cancellationToken = default);
-    }
+    Task CommitAsync(CancellationToken cancellationToken = default);
 }

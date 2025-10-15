@@ -1,4 +1,6 @@
 
+using patient.infrastructure;
+
 namespace api_patient
 {
     public class Program
@@ -10,6 +12,7 @@ namespace api_patient
             // Add services to the container.
 
             builder.Services.AddControllers();
+            builder.Services.AddInfrastructure(builder.Configuration);
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();

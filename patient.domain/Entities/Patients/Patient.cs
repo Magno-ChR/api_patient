@@ -1,11 +1,7 @@
 ﻿using patient.domain.Abstractions;
 using patient.domain.Entities.Contacts;
 using patient.domain.Shared;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace patient.domain.Entities.Patients;
 
@@ -25,7 +21,7 @@ public class Patient : AggregateRoot
     public IReadOnlyCollection<Contact> Contacts => _contacts.AsReadOnly();
 
 
-    public Patient(string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public Patient(Guid id, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies) : base(id)
     {      
         FisrtName = fisrtName;
         MiddleName = middleName;
@@ -38,7 +34,7 @@ public class Patient : AggregateRoot
         Alergies = alergies;
     }
 
-    public static Patient Create(string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public static Patient Create(Guid id, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
         if (string.IsNullOrWhiteSpace(fisrtName))
             throw new ArgumentException("El nombre no puede estar vacío");
@@ -48,7 +44,7 @@ public class Patient : AggregateRoot
             throw new ArgumentException("El número de documento no puede estar vacío");
         if (dateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
-        return new Patient(fisrtName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
+        return new Patient(id,fisrtName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
     }
 
     public static void Update(Patient patient, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
