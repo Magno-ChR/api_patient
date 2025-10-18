@@ -7,7 +7,7 @@ namespace patient.domain.Entities.Patients;
 
 public class Patient : AggregateRoot
 {
-    public string FisrtName { get; private set; }
+    public string FirstName { get; private set; }
     public string MiddleName { get; private set; }
     public string LastName { get; private set; }
     public BloodType BloodType { get; private set; }
@@ -21,9 +21,9 @@ public class Patient : AggregateRoot
     public IReadOnlyCollection<Contact> Contacts => _contacts.AsReadOnly();
 
 
-    public Patient(Guid id, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies) : base(id)
+    public Patient(Guid id, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies) : base(id)
     {      
-        FisrtName = fisrtName;
+        FirstName = firstName;
         MiddleName = middleName;
         LastName = lastName;
         BloodType = bloodType;
@@ -34,9 +34,9 @@ public class Patient : AggregateRoot
         Alergies = alergies;
     }
 
-    public static Patient Create(Guid id, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public static Patient Create(Guid id, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
-        if (string.IsNullOrWhiteSpace(fisrtName))
+        if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("El nombre no puede estar vacío");
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("El apellido no puede estar vacío");
@@ -44,12 +44,12 @@ public class Patient : AggregateRoot
             throw new ArgumentException("El número de documento no puede estar vacío");
         if (dateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
-        return new Patient(id,fisrtName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
+        return new Patient(id, firstName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
     }
 
-    public static void Update(Patient patient, string fisrtName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public static void Update(Patient patient, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
-        if (string.IsNullOrWhiteSpace(fisrtName))
+        if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("El nombre no puede estar vacío");
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("El apellido no puede estar vacío");
@@ -57,7 +57,7 @@ public class Patient : AggregateRoot
             throw new ArgumentException("El número de documento no puede estar vacío");
         if (dateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
-        patient.FisrtName = fisrtName;
+        patient.FirstName = firstName;
         patient.MiddleName = middleName ?? string.Empty;
         patient.LastName = lastName;
         patient.BloodType = bloodType;

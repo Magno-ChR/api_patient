@@ -26,8 +26,9 @@ internal class PatientPM
     public string LastName { get; set; } = string.Empty;
 
     [Column("BloodType")]
+    [StringLength(50)]
     [Required]
-    public int BloodType { get; set; }
+    public string BloodType { get; set; }
 
     [Column("DocumentNumber")]
     [StringLength(50)]

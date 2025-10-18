@@ -21,8 +21,4 @@
     <ProjectReference Include="..\patient.application\patient.application.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Percistence\DomainModel\Config\" />
-  </ItemGroup>
-
 </Project>
