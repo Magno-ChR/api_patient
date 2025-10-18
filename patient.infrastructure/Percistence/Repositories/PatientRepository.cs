@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using patient.domain.Entities.Contacts;
+using patient.domain.Entities.Evolutions;
 using patient.domain.Entities.Patients;
 using patient.infrastructure.Percistence.DomainModel;
 using System;
@@ -24,6 +26,7 @@ internal class PatientRepository : IPatientRepository
        await context.Patients.AddAsync(entity);
     }
 
+
     public async Task<Patient?> GetByIdAsync(Guid id, bool readOnly = false)
     {
         if (readOnly)
@@ -36,10 +39,11 @@ internal class PatientRepository : IPatientRepository
         }
     }
 
-    public Task UpdateAsync(Patient patient)
+    public Task UpdateAsync(Patient entity)
     {
-        context.Patients.Update(patient);
+        context.Patients.Update(entity);
 
         return Task.CompletedTask;
     }
+
 }

@@ -34,7 +34,7 @@ public class Patient : AggregateRoot
         Alergies = alergies;
     }
 
-    public static Patient Create(Guid id, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public Patient Create(Guid id, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("El nombre no puede estar vacío");
@@ -47,7 +47,7 @@ public class Patient : AggregateRoot
         return new Patient(id, firstName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
     }
 
-    public static void Update(Patient patient, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
+    public Patient Update(Patient patient, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("El nombre no puede estar vacío");
@@ -66,6 +66,8 @@ public class Patient : AggregateRoot
         patient.Ocupation = ocupation ?? string.Empty;
         patient.Religion = religion ?? string.Empty;
         patient.Alergies = alergies ?? string.Empty;
+
+        return patient;
     }
 
     public void AddContact(string direction, string reference, string phoneNumber, string floor, string coords)
@@ -74,9 +76,9 @@ public class Patient : AggregateRoot
         _contacts.Add(contact);
     }
 
-    public void RemoveContact(Guid contactId)
+    public void RemoveContact(Guid contactId, Guid patientId)
     {
-        var contact = _contacts.FirstOrDefault(c => c.Id == contactId);
+        var contact = _contacts.FirstOrDefault(c => c.Id == contactId && c.PatientId == patientId);
         if (contact != null)
             _contacts.Remove(contact);
     }

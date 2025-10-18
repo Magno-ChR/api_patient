@@ -13,17 +13,15 @@ namespace patient.domain.Entities.Backgrounds
         public DateTime RegisterDate { get; private set; }
         public string Description { get; private set; }
 
-        public Background(Guid id, Guid historyId, DateTime registerDate, string description)
+        public Background(Guid id, Guid historyId, string description)
             : base(id)
         {
             if (historyId == Guid.Empty)
                 throw new ArgumentException("El ID de la historia no puede estar vacío", nameof(historyId));
-            if (registerDate > DateTime.UtcNow)
-                throw new ArgumentException("La fecha de registro no puede ser en el futuro", nameof(registerDate));
             if (string.IsNullOrWhiteSpace(description))
                 throw new ArgumentException("La descripción no puede estar vacía", nameof(description));
             HistoryId = historyId;
-            RegisterDate = registerDate;
+            RegisterDate = DateTime.Now;
             Description = description;
         }   
 
