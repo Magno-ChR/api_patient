@@ -27,8 +27,13 @@ internal class PatientConfig : IEntityTypeConfiguration<Patient>,
             .HasConversion(bloodTypeConverter)
             .HasColumnName("BloodType");
 
+        builder.HasMany(typeof(Contact), "_contacts");
+
+
         builder.Ignore("_domainEvents");
         builder.Ignore(x => x.DomainEvents);
+
+        builder.Ignore(x => x.Contacts);
     }
 
     public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Contact> builder)

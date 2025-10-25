@@ -50,15 +50,9 @@ internal class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Resu
         if (patient is null)
             return Result.Failure<Guid>(Error.NotFound("Patient.NotFound", "Paciente no encontrado"));
 
-        // Evitar advertencias de nulabilidad y validar/normalizar valores antes de pasarlos al agregado
-        var direction = request.Direction ?? string.Empty;
-        var reference = request.Reference ?? string.Empty;
-        var phoneNumber = request.PhoneNumber ?? string.Empty;
-        var floor = request.Floor ?? string.Empty;
-        var coords = request.Coords ?? string.Empty;
 
         // Delegar la creación del contact al agregado para mantener invariantes
-        patient.AddContact(direction, reference, phoneNumber, floor, coords);
+        patient.AddContact(request.Direction, request.Reference, request.PhoneNumber, request.Floor, request.Coords);
 
         // Persistir el agregado (si el repositorio devuelve una entidad trackeada, UpdateAsync puede ser redundante)
         await _patientRepository.UpdateAsync(patient);
