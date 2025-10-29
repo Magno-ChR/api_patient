@@ -5,10 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace patient.domain.Entities.Patients;
+namespace patient.domain.Entities.Patients.Events;
 
-public interface IPatientRepository : IRepository<Patient>
-{
-    Task UpdateAsync(Patient patient);
+public record ContactCreateEvent(Guid ContactId) : DomainEvent;
 
-}

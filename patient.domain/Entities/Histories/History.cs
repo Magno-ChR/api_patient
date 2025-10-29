@@ -1,7 +1,10 @@
 ﻿using patient.domain.Abstractions;
 using patient.domain.Entities.Backgrounds;
+using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Evolutions;
 using patient.domain.Entities.FoodPlans;
+using patient.domain.Entities.Histories.Events;
+using patient.domain.Entities.Patients.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,6 +67,9 @@ namespace patient.domain.Entities.Histories
             if (background.HistoryId != this.Id)
                 throw new ArgumentException("El ID de la historia del antecedente no coincide con el ID de esta historia");
             _backgrounds.Add(background);
+
+            var domainEvent = new BackgroundCreateEvent(background.Id);
+            AddDomainEvent(domainEvent);
         }
 
         public void RemoveBackground(Background background)
@@ -82,6 +88,9 @@ namespace patient.domain.Entities.Histories
             if (evolution.HistoryId != this.Id)
                 throw new ArgumentException("El ID de la historia de la evolución no coincide con el ID de esta historia");
             _evolutions.Add(evolution);
+
+            var domainEvent = new EvolutionCreateEvent(evolution.Id);
+            AddDomainEvent(domainEvent);
         }
 
         public void RemoveEvolution(Evolution evolution)

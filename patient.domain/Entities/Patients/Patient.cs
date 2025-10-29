@@ -1,5 +1,6 @@
 ﻿using patient.domain.Abstractions;
 using patient.domain.Entities.Contacts;
+using patient.domain.Entities.Patients.Events;
 using patient.domain.Shared;
 
 
@@ -74,6 +75,18 @@ public class Patient : AggregateRoot
     {
         var contact = new Contact(Guid.NewGuid(), this.Id, direction, reference, phoneNumber, floor, coords);
         _contacts.Add(contact);
+
+        var domainEvent = new ContactCreateEvent(contact.Id);
+        AddDomainEvent(domainEvent);
+    }
+
+    public void UpdateContact(Guid contactId, Guid patientId, string direction, string reference, string phoneNumber, string floor, string coords)
+    {
+        var existingContact = _contacts.FirstOrDefault(c => c.Id == contactId);
+        if (existingContact == null)
+            throw new ArgumentException("El contacto no existe para este paciente");
+        existingContact = new Contact(contactId, patientId, direction, reference, phoneNumber, floor, coords);
+
     }
 
     public void RemoveContact(Guid contactId, Guid patientId)

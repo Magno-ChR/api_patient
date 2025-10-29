@@ -48,6 +48,14 @@ public class PatientsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut]
+    [Route("Contacts")]
+    public async Task<IActionResult> UpdatePatientContact([FromBody]UpdatePatientContactCommand request)
+    {
+        var result = await _mediator.Send(request);
+        return Ok(result);
+    }
+
     [HttpDelete]
     [Route("Contacts")]
     public async Task<IActionResult> DeletePatientContact([FromBody]DeletePatientContactCommand request)
