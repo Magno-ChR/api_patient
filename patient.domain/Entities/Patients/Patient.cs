@@ -47,7 +47,7 @@ public class Patient : AggregateRoot
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
         return new Patient(id, firstName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
     }
-
+        
     public Patient Update(Patient patient, string firstName, string middleName, string lastName, BloodType bloodType, string documentNumber, DateOnly dateOfBirth, string ocupation, string religion, string alergies)
     {
         if (string.IsNullOrWhiteSpace(firstName))
@@ -80,13 +80,14 @@ public class Patient : AggregateRoot
         AddDomainEvent(domainEvent);
     }
 
+    // Modificado: ahora actualiza la entidad existente llamando a Contact.Update(...)
     public void UpdateContact(Guid contactId, Guid patientId, string direction, string reference, string phoneNumber, string floor, string coords)
     {
-        var existingContact = _contacts.FirstOrDefault(c => c.Id == contactId);
+        var existingContact = _contacts.FirstOrDefault(c => c.Id == contactId && c.PatientId == patientId);
         if (existingContact == null)
             throw new ArgumentException("El contacto no existe para este paciente");
-        existingContact = new Contact(contactId, patientId, direction, reference, phoneNumber, floor, coords);
 
+        existingContact.Update(direction, reference, phoneNumber, floor, coords);
     }
 
     public void RemoveContact(Guid contactId, Guid patientId)

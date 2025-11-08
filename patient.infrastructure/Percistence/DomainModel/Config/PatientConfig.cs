@@ -27,12 +27,11 @@ internal class PatientConfig : IEntityTypeConfiguration<Patient>,
             .HasConversion(bloodTypeConverter)
             .HasColumnName("BloodType");
 
-        builder.HasMany(typeof(Contact), "_contacts");
+        builder.HasMany("_contacts");
 
 
         builder.Ignore("_domainEvents");
         builder.Ignore(x => x.DomainEvents);
-
         builder.Ignore(x => x.Contacts);
     }
 

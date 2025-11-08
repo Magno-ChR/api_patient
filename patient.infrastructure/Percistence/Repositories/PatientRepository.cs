@@ -33,29 +33,41 @@ internal class PatientRepository : IPatientRepository
         if (readOnly)
         {
             return await context.Patients
-                .AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+                .AsNoTracking()
+                .Include("_contacts")
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
         else
         {
             return await context.Patients
-                .FindAsync(id);
+                .Include("_contacts")
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
     }
 
+    //public Task UpdateAsync(Patient entity)
+    //{
+    //    var added = entity.DomainEvents.Where(x => x is ContactCreateEvent)
+    //        .Select(e => (ContactCreateEvent)e).ToList();
+
+    //    foreach (var domainEvent in added)
+    //    {
+    //        var itemToAdd = entity.Contacts.First(c => c.Id == domainEvent.ContactId);
+    //        context.Contacts.Add(itemToAdd);
+    //    }
+
+    //    context.Patients.Update(entity);
+
+    //    return Task.CompletedTask;
+    //} 
+
     public Task UpdateAsync(Patient entity)
     {
-        var added = entity.DomainEvents.Where(x => x is ContactCreateEvent)
-            .Select(e => (ContactCreateEvent)e).ToList();
-
-        foreach (var domainEvent in added)
-        {
-            var itemToAdd = entity.Contacts.First(c => c.Id == domainEvent.ContactId);
-            context.Contacts.Add(itemToAdd);
-        }
-
+        // Con la configuración correcta de EF (Owned o HasMany),
+        // basta con actualizar el agregado completo. EF detectará
+        // inserciones/actualizaciones/eliminaciones en la colección.
         context.Patients.Update(entity);
-
         return Task.CompletedTask;
-    } 
+    }
 
 }
