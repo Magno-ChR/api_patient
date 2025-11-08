@@ -25,7 +25,7 @@ public class Evolution : Entity
         if (string.IsNullOrWhiteSpace(medicOrder))
             throw new ArgumentException("La orden médica no puede estar vacía", nameof(medicOrder));
         HistoryId = historyId;
-        RegisterDate = DateTime.UtcNow;
+        RegisterDate = DateTime.Now.ToUniversalTime();
         Description = description;
         Observations = observations;
         MedicOrder = medicOrder;

@@ -21,7 +21,7 @@ namespace patient.domain.Entities.Backgrounds
             if (string.IsNullOrWhiteSpace(description))
                 throw new ArgumentException("La descripción no puede estar vacía", nameof(description));
             HistoryId = historyId;
-            RegisterDate = DateTime.Now;
+            RegisterDate = DateTime.Now.ToUniversalTime();
             Description = description;
         }   
 

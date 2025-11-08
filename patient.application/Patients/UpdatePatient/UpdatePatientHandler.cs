@@ -10,7 +10,8 @@ using System.Threading.Tasks;
 
 namespace patient.application.Patients.UpdatePatient;
 
-internal class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result<Guid>>
+internal class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result<Guid>>,
+    IRequestHandler<UpdatePatientContactCommand, Result<Guid>>
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -19,7 +20,7 @@ internal class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Resu
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
-    } 
+    }
 
     public async Task<Result<Guid>> Handle(UpdatePatientCommand request, CancellationToken cancellationToken)
     {
@@ -45,5 +46,29 @@ internal class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Resu
         await _patientRepository.UpdateAsync(patient);
         await _unitOfWork.CommitAsync(cancellationToken);
         return Result.Success(patient.Id);
+    }
+
+    public async Task<Result<Guid>> Handle(UpdatePatientContactCommand request, CancellationToken cancellationToken)
+    {
+        // Cargar el agregado (no readonly porque vamos a modificarlo)
+        var patient = await _patientRepository.GetByIdAsync(request.PatientId, readOnly: false);
+        if (patient is null)
+            return Result.Failure<Guid>(Error.NotFound("Patient.NotFound", "Paciente no encontrado"));
+
+        // Actualizar los datos del contacto
+        patient.UpdateContact(
+            request.ContactId,
+            request.PatientId,
+            request.Direction,
+            request.Reference,
+            request.PhoneNumber,
+            request.Floor,
+            request.Coords
+        );
+
+        await _patientRepository.UpdateAsync(patient);
+        await _unitOfWork.CommitAsync(cancellationToken);
+        return Result.Success(request.ContactId);
+
     }
 }

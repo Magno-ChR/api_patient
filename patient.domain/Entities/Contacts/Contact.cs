@@ -36,11 +36,33 @@ public class Contact : Entity
 
         PatientId = patientId;
         Direction = direction;
-        Reference = reference;
+        Reference = reference ?? string.Empty;
         PhoneNumber = phoneNumber;
         Floor = floor;
         Coords = coords;
     }   
 
+    // Nuevo: método para actualizar un contacto preservando las validaciones del dominio
+    public void Update(string direction, string reference, string phoneNumber, string floor, string coords)
+    {
+        if (string.IsNullOrWhiteSpace(direction))
+            throw new ArgumentException("La dirección no puede estar vacía", nameof(direction));
+
+        if (string.IsNullOrWhiteSpace(phoneNumber))
+            throw new ArgumentException("El número de teléfono no puede estar vacío", nameof(phoneNumber));
+
+        if (string.IsNullOrWhiteSpace(floor))
+            throw new ArgumentException("El piso no puede estar vacío", nameof(floor));
+
+        if (string.IsNullOrWhiteSpace(coords))
+            throw new ArgumentException("Las coordenadas no pueden estar vacías", nameof(coords));
+
+        Direction = direction;
+        Reference = reference ?? string.Empty;
+        PhoneNumber = phoneNumber;
+        Floor = floor;
+        Coords = coords;
+    }
+
     private Contact() : base() { }
-} 
+}
