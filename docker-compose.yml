@@ -9,11 +9,6 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=mydatabase;Username=myuser;Password=mypassword;"
     depends_on:
       - postgres
-    command: >
-      sh -c "
-        dotnet /app/infrastructure/Patient.Infrastructure.dll database update --project /app/infrastructure/Patient.Infrastructure.dll --startup-project /app/api/api_patient.dll --context PersistenceDbContext &&
-        dotnet /app/api/api_patient.dll
-      "
 
   postgres:
     image: postgres:15

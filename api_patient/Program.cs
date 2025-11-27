@@ -1,4 +1,5 @@
 
+using api_patient.Extensions;
 using patient.infrastructure;
 
 namespace api_patient
@@ -27,7 +28,7 @@ namespace api_patient
             }
 
             app.UseHttpsRedirection();
-
+            app.ApplyMigrations();
             app.UseAuthorization();
 
 

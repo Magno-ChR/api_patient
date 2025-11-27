@@ -8,7 +8,7 @@ using patient.infrastructure.Percistence.PersistenceModel.Entities;
 
 namespace patient.infrastructure.Percistence.PersistenceModel;
 
-public class PersistenceDbContext : DbContext, IDatabase
+internal class PersistenceDbContext : DbContext, IDatabase
 {
     public DbSet<BackgroundPM> Backgrounds { get; set; }
     public DbSet<PatientPM> Patients { get; set; }

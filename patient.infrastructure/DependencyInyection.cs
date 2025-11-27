@@ -30,7 +30,7 @@ public static class DependencyInyection
         services.AddDbContext<PersistenceDbContext>(context =>
                 context.UseNpgsql(connectionString));
 
-
+        services.AddScoped<IDatabase, PersistenceDbContext>();
 
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IHistoryRepository, HistoryRepository>();

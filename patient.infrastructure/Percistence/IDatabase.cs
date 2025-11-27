@@ -9,7 +9,7 @@ namespace patient.infrastructure.Percistence;
 /// <summary>
 /// Sirve para no tener que ejecutar la migración desde la consola
 /// </summary>
-internal interface IDatabase
+public interface IDatabase : IDisposable
 {
     void Migrate();
 }
