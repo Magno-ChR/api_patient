@@ -1,6 +1,6 @@
 services:
   api:
-    image: geonmagno/api_patient:0.1.0
+    image: geonmagno/api_patient:0.1.1
     container_name: api_patient_test
     ports:
       - "8080:8080"
