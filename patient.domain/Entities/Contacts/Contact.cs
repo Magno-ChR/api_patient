@@ -15,6 +15,7 @@ public class Contact : Entity
     public string PhoneNumber { get; private set; }
     public string Floor { get; private set; }
     public string Coords { get; private set; }
+    public bool IsActive { get; private set; }
 
     public Contact(Guid id, Guid patientId, string direction, string reference, string phoneNumber, string floor, string coords)
         : base(id)
@@ -34,12 +35,14 @@ public class Contact : Entity
         if (string.IsNullOrWhiteSpace(coords))
             throw new ArgumentException("Las coordenadas no pueden estar vacías", nameof(coords));
 
+
         PatientId = patientId;
         Direction = direction;
         Reference = reference ?? string.Empty;
         PhoneNumber = phoneNumber;
         Floor = floor;
         Coords = coords;
+        IsActive = true;
     }   
 
     // Nuevo: método para actualizar un contacto preservando las validaciones del dominio
@@ -62,6 +65,11 @@ public class Contact : Entity
         PhoneNumber = phoneNumber;
         Floor = floor;
         Coords = coords;
+    }
+
+    public void logicDelete()
+    {
+        IsActive = false;
     }
 
     private Contact() : base() { }

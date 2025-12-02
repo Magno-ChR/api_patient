@@ -3,6 +3,7 @@ using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Evolutions;
 using patient.domain.Entities.Patients;
 using patient.domain.Entities.Patients.Events;
+using patient.domain.Shared;
 using patient.infrastructure.Percistence.DomainModel;
 using System;
 using System.Collections.Generic;
@@ -43,6 +44,41 @@ internal class PatientRepository : IPatientRepository
                 .Include("_contacts")
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
+    }
+
+    public async Task<PagedResult<Patient>> GetPagedAsync(int page,int pageSize,string? search = null)
+    {
+        var query = context.Patients.AsNoTracking();
+
+        // Optional search
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(p =>
+                p.FirstName.Contains(search) ||
+                p.LastName.Contains(search) ||
+                p.DocumentNumber.Contains(search)
+            );
+        }
+
+        // Count total
+        var totalItems = await query.CountAsync();
+
+        // Pagination
+        var items = await query
+            .OrderBy(p => p.FirstName)
+            .ThenBy(p => p.LastName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<Patient>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+            Items = items
+        };
     }
 
 

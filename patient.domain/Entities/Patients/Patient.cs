@@ -92,9 +92,9 @@ public class Patient : AggregateRoot
 
     public void RemoveContact(Guid contactId, Guid patientId)
     {
-        var contact = _contacts.FirstOrDefault(c => c.Id == contactId && c.PatientId == patientId);
+        var contact = _contacts.FirstOrDefault(c => c.Id == contactId && c.PatientId == patientId && c.IsActive);
         if (contact != null)
-            _contacts.Remove(contact);
+            contact.logicDelete();
     }
 
     private Patient() : base() { }

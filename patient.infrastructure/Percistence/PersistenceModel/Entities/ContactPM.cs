@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 
 
 namespace patient.infrastructure.Percistence.PersistenceModel.Entities;
@@ -34,6 +35,10 @@ internal class ContactPM
     [StringLength(100)]
     [Required]
     public string Coords { get; set; } = string.Empty;
+
+    [Column("IsActive")]
+    [Required]
+    public bool IsActive { get; set; } = true;
 
     [Required]
     [Column("PatientId")]

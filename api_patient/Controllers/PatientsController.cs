@@ -19,10 +19,17 @@ public class PatientsController : ControllerBase
         _mediator = mediator;
     }
 
-    [HttpGet]
+    [HttpGet("GetById")]
     public async Task<IActionResult> GetPatient([FromQuery]GetPatientCommand Id)
     {
         var result = await _mediator.Send(Id);
+        return Ok(result);
+    }
+
+    [HttpGet("GetList")]
+    public async Task<IActionResult> GetPatients([FromQuery]GetPatientListCommand request)
+    {
+        var result = await _mediator.Send(request);
         return Ok(result);
     }
 
@@ -33,16 +40,16 @@ public class PatientsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost]
-    [Route("Contacts")]
-    public async Task<IActionResult> CreatePatientContact([FromBody]CreatePatientContactCommand request)
+    [HttpPut]
+    public async Task<IActionResult> UpdatePatient([FromBody] UpdatePatientCommand request)
     {
         var result = await _mediator.Send(request);
         return Ok(result);
     }
 
-    [HttpPut]
-    public async Task<IActionResult> UpdatePatient([FromBody]UpdatePatientCommand request)
+    [HttpPost]
+    [Route("Contacts")]
+    public async Task<IActionResult> CreatePatientContact([FromBody]CreatePatientContactCommand request)
     {
         var result = await _mediator.Send(request);
         return Ok(result);
@@ -58,7 +65,7 @@ public class PatientsController : ControllerBase
 
     [HttpDelete]
     [Route("Contacts")]
-    public async Task<IActionResult> DeletePatientContact([FromBody]DeletePatientContactCommand request)
+    public async Task<IActionResult> DeletePatientContact([FromQuery ]DeletePatientContactCommand request)
     {
         var result = await _mediator.Send(request);
         return Ok(result);
