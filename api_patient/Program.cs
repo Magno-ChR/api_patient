@@ -1,5 +1,6 @@
-
+using AspNetCore.Swagger.Themes;
 using api_patient.Extensions;
+using Microsoft.OpenApi.Models;
 using patient.infrastructure;
 
 namespace api_patient
@@ -16,7 +17,14 @@ namespace api_patient
             builder.Services.AddInfrastructure(builder.Configuration);
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "API_PATIENT",
+                    Version = "v0.1.1"
+                });
+            });
 
             var app = builder.Build();
 
@@ -24,7 +32,10 @@ namespace api_patient
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(ModernStyle.Dark, x =>
+                {
+                    x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+                });
             }
 
             app.UseHttpsRedirection();
