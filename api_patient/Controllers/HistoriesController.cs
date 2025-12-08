@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using patient.application.Histories.CreateHistory;
+using patient.application.Histories.GetHistory;
 
 namespace api_patient.Controllers
 {
@@ -15,6 +16,10 @@ namespace api_patient.Controllers
         {
             mediator = _mediator;
         }
+
+        [HttpGet("GetById")]
+        public async Task<IActionResult> GetHistory([FromQuery] GetHistoryCommand Id)
+            => Ok(await mediator.Send(Id));
 
         [HttpPost]
         public async Task<IActionResult> CreateHistory([FromBody] CreateHistoryCommand request)

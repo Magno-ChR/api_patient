@@ -8,7 +8,7 @@ using patient.domain.Results;
 
 namespace patient.application.Patients.CreatePatient;
 
-internal class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result<Guid>>,
+public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result<Guid>>,
     IRequestHandler<CreatePatientContactCommand, Result<Guid>>
 {
     private readonly IPatientRepository _patientRepository;

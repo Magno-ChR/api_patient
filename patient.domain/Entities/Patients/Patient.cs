@@ -43,8 +43,12 @@ public class Patient : AggregateRoot
             throw new ArgumentException("El apellido no puede estar vacío");
         if (string.IsNullOrWhiteSpace(documentNumber))
             throw new ArgumentException("El número de documento no puede estar vacío");
+        if(DateOnly.TryParse(dateOfBirth.ToString(), out var dob) == false)
+            throw new ArgumentException("La fecha de nacimiento no es válida");
         if (dateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
+        if (dateOfBirth < DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-150)))
+            throw new ArgumentException("La fecha de nacimiento no puede inferior a 150 años");
         return new Patient(id, firstName, middleName ?? string.Empty, lastName, bloodType, documentNumber, dateOfBirth, ocupation ?? string.Empty, religion ?? string.Empty, alergies ?? string.Empty);
     }
         
@@ -58,6 +62,7 @@ public class Patient : AggregateRoot
             throw new ArgumentException("El número de documento no puede estar vacío");
         if (dateOfBirth > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("La fecha de nacimiento no puede ser en el futuro");
+
         patient.FirstName = firstName;
         patient.MiddleName = middleName ?? string.Empty;
         patient.LastName = lastName;
