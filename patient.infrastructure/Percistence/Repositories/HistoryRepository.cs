@@ -34,11 +34,18 @@ internal class HistoryRepository : IHistoryRepository
     {
         if (readOnly)
         {
-            return await context.Histories.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+            return await context.Histories
+                .AsNoTracking()
+                .Include("_backgrounds")
+                .Include("_evolutions")
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
         else
         {
-            return await context.Histories.FindAsync(id);
+            return await context.Histories
+                .Include("_backgrounds")
+                .Include("_evolutions")
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
     }
 

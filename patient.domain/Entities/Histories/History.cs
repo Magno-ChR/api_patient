@@ -72,6 +72,14 @@ namespace patient.domain.Entities.Histories
             AddDomainEvent(domainEvent);
         }
 
+        public void UpdateBackground(Guid historyId, Guid backgroudId, string detail)
+        {
+           var existingBackground = _backgrounds.FirstOrDefault(b => b.Id == backgroudId && b.HistoryId == historyId);
+            if (existingBackground is null)
+                throw new ArgumentException("El antecedente no existe en esta historia");
+            existingBackground.Update(detail);
+        }
+
         public void RemoveBackground(Background background)
         {
             if (background == null)

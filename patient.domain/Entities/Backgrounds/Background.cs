@@ -25,6 +25,15 @@ namespace patient.domain.Entities.Backgrounds
             Description = description;
         }   
 
+        public void Update(string description)
+        {
+            if (string.IsNullOrWhiteSpace(description))
+                throw new ArgumentException("La descripción no puede estar vacía", nameof(description));
+
+            RegisterDate = DateTime.Now.ToUniversalTime();
+            Description = description;
+        }
+
         private Background() : base() { }
     }
 }

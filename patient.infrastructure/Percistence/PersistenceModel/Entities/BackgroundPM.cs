@@ -25,6 +25,6 @@ internal class BackgroundPM
     public Guid HistoryId { get; set; }
 
     [ForeignKey(nameof(HistoryId))]
-    public HistoryPM History { get; set; }
+    public HistoryPM History { get; set; } = null!;
 
 }

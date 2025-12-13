@@ -30,7 +30,7 @@ internal class EvolutionPM
 
     [Column("HistoryId")]
     [Required]
-    public Guid? HistoryId { get; set; }
+    public Guid HistoryId { get; set; }
 
     [ForeignKey(nameof(HistoryId))]
     public HistoryPM History { get; set; } = null!;
