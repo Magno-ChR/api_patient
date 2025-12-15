@@ -1,0 +1,281 @@
+{
+	"info": {
+		"_postman_id": "765a5ff8-11f2-4119-a33b-d22c6b30219b",
+		"name": "Patient-IntegrationTest",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28316333"
+	},
+	"item": [
+		{
+			"name": "Test/Patients",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// 1. Verificar status HTTP\r",
+							"pm.test(\"Status code is 200 or 201\", function () {\r",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+							"});\r",
+							"\r",
+							"// 2. Verificar que la respuesta es JSON\r",
+							"pm.test(\"Response is JSON\", function () {\r",
+							"    pm.response.to.be.json;\r",
+							"});\r",
+							"\r",
+							"// Parsear response\r",
+							"const response = pm.response.json();\r",
+							"\r",
+							"// 3. Validar estructura principal\r",
+							"pm.test(\"Response has success flags\", function () {\r",
+							"    pm.expect(response).to.have.property(\"isSuccess\", true);\r",
+							"    pm.expect(response).to.have.property(\"isFailure\", false);\r",
+							"});\r",
+							"\r",
+							"// 4. Validar que se devuelve un ID válido\r",
+							"pm.test(\"Patient ID is a valid UUID\", function () {\r",
+							"    pm.expect(response).to.have.property(\"value\");\r",
+							"    pm.expect(response.value).to.match(\r",
+							"        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i\r",
+							"    );\r",
+							"});\r",
+							"\r",
+							"// 5. Validar objeto error vacío\r",
+							"pm.test(\"Error object is empty\", function () {\r",
+							"    pm.expect(response).to.have.property(\"error\");\r",
+							"    pm.expect(response.error.code).to.eql(\"\");\r",
+							"    pm.expect(response.error.description).to.eql(\"\");\r",
+							"    pm.expect(response.error.structuredMessage).to.eql(\"\");\r",
+							"    pm.expect(response.error.type).to.eql(0);\r",
+							"});\r",
+							"\r",
+							"// 6. Guardar patientId para pruebas posteriores\r",
+							"pm.environment.set(\"patientId\", response.value);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Generar un número de documento único para evitar conflictos\r",
+							"const timestamp = Date.now();\r",
+							"pm.environment.set(\"documentNumber\", `DOC-${timestamp}`);\r",
+							"\r",
+							"// Payload dinámico (opcional)\r",
+							"pm.environment.set(\"firstName\", \"Juan\");\r",
+							"pm.environment.set(\"middleName\", \"Pedro\");\r",
+							"pm.environment.set(\"lastName\", \"Chuyes Romero\");\r",
+							"pm.environment.set(\"dateOfBirth\", \"2000-08-15\");"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"firstName\": \"{{firstName}}\",\r\n  \"middleName\": \"{{middleName}}\",\r\n  \"lastName\": \"{{lastName}}\",\r\n  \"bloodType\": 1,\r\n  \"documentNumber\": \"{{documentNumber}}\",\r\n  \"dateOfBirth\": \"{{dateOfBirth}}\",\r\n  \"ocupation\": \"Desarrollador\",\r\n  \"religion\": \"Agnostico\",\r\n  \"alergies\": \"Ninguna\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/Patients",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"Patients"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Test/Patients/GetById",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"/**\r",
+							" * Escenarios:\r",
+							" * - SUCCESS  -> Usa patientId válido\r",
+							" * - NOT_FOUND -> Usa UUID inexistente\r",
+							" */\r",
+							"\r",
+							"const scenario = pm.environment.get(\"scenario\") || \"SUCCESS\";\r",
+							"\r",
+							"if (scenario === \"NOT_FOUND\") {\r",
+							"    pm.environment.set(\r",
+							"        \"patientId\",\r",
+							"        \"00000000-0000-0000-0000-000000000000\"\r",
+							"    );\r",
+							"}\r",
+							"\r",
+							"// Si es SUCCESS, se asume que patientId\r",
+							"// ya fue creado y guardado previamente"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Verificar que la respuesta es JSON\r",
+							"pm.test(\"Response is JSON\", function () {\r",
+							"    pm.response.to.be.json;\r",
+							"});\r",
+							"\r",
+							"const response = pm.response.json();\r",
+							"\r",
+							"/* ============================\r",
+							"   CASO 404 - NOT FOUND\r",
+							"============================ */\r",
+							"if (pm.response.code === 404) {\r",
+							"\r",
+							"    pm.test(\"Status code is 404\", function () {\r",
+							"        pm.response.to.have.status(404);\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"GetById failed as expected\", function () {\r",
+							"        pm.expect(response.isSuccess).to.eql(false);\r",
+							"        pm.expect(response.isFailure).to.eql(true);\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"Error code is Patient.NotFound\", function () {\r",
+							"        pm.expect(response.error.code).to.eql(\"Patient.NotFound\");\r",
+							"        pm.expect(response.error.description).to.eql(\"Paciente no encontrado\");\r",
+							"        pm.expect(response.error.structuredMessage).to.eql(\"Paciente no encontrado\");\r",
+							"        pm.expect(response.error.type).to.eql(3);\r",
+							"    });\r",
+							"}\r",
+							"\r",
+							"/* ============================\r",
+							"   CASO 200 - OK\r",
+							"============================ */\r",
+							"if (pm.response.code === 200) {\r",
+							"\r",
+							"    pm.test(\"Status code is 200\", function () {\r",
+							"        pm.response.to.have.status(200);\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"GetById succeeded\", function () {\r",
+							"        pm.expect(response.isSuccess).to.eql(true);\r",
+							"        pm.expect(response.isFailure).to.eql(false);\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"Patient data is returned\", function () {\r",
+							"    pm.expect(response).to.have.property(\"value\");\r",
+							"\r",
+							"    const patient = response.value;\r",
+							"\r",
+							"    pm.expect(patient).to.have.property(\"id\");\r",
+							"    pm.expect(patient.id).to.match(\r",
+							"        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i\r",
+							"    );\r",
+							"\r",
+							"    pm.expect(patient).to.have.property(\"firstName\");\r",
+							"    pm.expect(patient).to.have.property(\"lastName\");\r",
+							"    pm.expect(patient).to.have.property(\"documentNumber\");\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"Patient ID is a valid UUID\", function () {\r",
+							"        pm.expect(response.value.id).to.match(\r",
+							"            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i\r",
+							"        );\r",
+							"    });\r",
+							"\r",
+							"    pm.test(\"Error object is empty\", function () {\r",
+							"        pm.expect(response.error.code).to.eql(\"\");\r",
+							"        pm.expect(response.error.description).to.eql(\"\");\r",
+							"        pm.expect(response.error.structuredMessage).to.eql(\"\");\r",
+							"        pm.expect(response.error.type).to.eql(0);\r",
+							"    });\r",
+							"}"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "accept",
+						"value": "*/*"
+					}
+				],
+				"url": {
+					"raw": "https://localhost:7134/api/Patients/GetById?PatientId={{patientId}}",
+					"protocol": "https",
+					"host": [
+						"localhost"
+					],
+					"port": "7134",
+					"path": [
+						"api",
+						"Patients",
+						"GetById"
+					],
+					"query": [
+						{
+							"key": "PatientId",
+							"value": "{{patientId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": ""
+		}
+	]
+}
