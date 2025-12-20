@@ -1,5 +1,6 @@
 ﻿using api_patient.Extensions;
 using MediatR;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using patient.application.Patients.CreatePatient;
@@ -21,11 +22,8 @@ public class PatientsController : ControllerBase
     }
 
     [HttpGet("GetById")]
-    public async Task<IActionResult> GetPatient([FromQuery]GetPatientCommand Id)
-    {
-        var result = await _mediator.Send(Id);
-        return this.HandleResult(result);
-    }
+    public async Task<IActionResult> GetPatient([FromQuery]GetPatientCommand request)
+        => this.HandleResult(await _mediator.Send(request));
 
     [HttpGet("GetList")]
     public async Task<IActionResult> GetPatients([FromQuery]GetPatientListCommand request)
