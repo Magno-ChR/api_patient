@@ -31,21 +31,21 @@ public class PatientsController : ControllerBase
     public async Task<IActionResult> GetPatients([FromQuery]GetPatientListCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreatePatient([FromBody]CreatePatientCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 
     [HttpPut]
     public async Task<IActionResult> UpdatePatient([FromBody] UpdatePatientCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 
     [HttpPost]
@@ -53,7 +53,7 @@ public class PatientsController : ControllerBase
     public async Task<IActionResult> CreatePatientContact([FromBody]CreatePatientContactCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 
     [HttpPut]
@@ -61,7 +61,7 @@ public class PatientsController : ControllerBase
     public async Task<IActionResult> UpdatePatientContact([FromBody]UpdatePatientContactCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 
     [HttpDelete]
@@ -69,6 +69,6 @@ public class PatientsController : ControllerBase
     public async Task<IActionResult> DeletePatientContact([FromQuery ]DeletePatientContactCommand request)
     {
         var result = await _mediator.Send(request);
-        return Ok(result);
+        return this.HandleResult(result);
     }
 }

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace patient.test.Domain;
+namespace patient.test.UnitTest.Domain;
 
 public class HistoryTest
 {

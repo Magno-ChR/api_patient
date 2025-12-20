@@ -2,7 +2,7 @@ using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Patients;
 using patient.domain.Shared;
 
-namespace patient.test;
+namespace patient.test.UnitTest.Domain;
 
 public class PatientContactTest
 {

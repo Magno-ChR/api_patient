@@ -9,7 +9,7 @@ using patient.domain.Shared;
 using Xunit.Abstractions;
 
 
-namespace patient.test.Application;
+namespace patient.test.UnitTest.Application;
 
 public class PatientHandlerTest
 {

@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using api_patient.Extensions;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using patient.application.FoodPlans.CreateFoodPlan;
@@ -18,6 +19,6 @@ namespace api_patient.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CreateFoodPlan([FromBody] CreateFoodPlanCommand request)
-            => Ok(await mediator.Send(request));
+            => this.HandleResult(await mediator.Send(request));
     }
 }

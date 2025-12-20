@@ -1,7 +1,7 @@
 using patient.domain.Entities.Patients;
 using patient.domain.Shared;
 
-namespace patient.test.Domain;
+namespace patient.test.UnitTest.Domain;
 
 public class PatientTest
 {
@@ -9,7 +9,7 @@ public class PatientTest
     public void ItemCreation_IsValid()
     {
         // Arrange
-        var patientData = new Patient(Guid.NewGuid(), "Juan", "Carlos", "Pérez", BloodType.ONegative, "12345678", new DateOnly(1990, 5, 20), "Ingeniero", "Católico", "Ninguna");
+        var patientData = new Patient(Guid.NewGuid(), "Juan", "Carlos", "Pérez", BloodType.ONegative, "12345678", new DateOnly(2000, 5, 20), "Ingeniero", "Católico", "Ninguna");
 
         // Act
         var patient = patientData.Create(patientData.Id, patientData.FirstName, patientData.MiddleName, patientData.LastName, patientData.BloodType, patientData.DocumentNumber, patientData.DateOfBirth, patientData.Ocupation, patientData.Religion, patientData.Alergies);
