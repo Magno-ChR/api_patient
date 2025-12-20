@@ -20,20 +20,21 @@ namespace api_patient.Controllers
         }
 
         [HttpGet("GetById")]
-        public async Task<IActionResult> GetHistory([FromQuery] GetHistoryCommand Id)
-            => Ok(await mediator.Send(Id));
+        public async Task<IActionResult> GetHistory([FromQuery] GetHistoryCommand request)
+            => this.HandleResult(await mediator.Send(request));
 
         [HttpPost]
         public async Task<IActionResult> CreateHistory([FromBody] CreateHistoryCommand request)
-            => Ok(await mediator.Send(request));
+            => this.HandleResult(await mediator.Send(request));
+
         [HttpPut]
         public async Task<IActionResult> UpdateHistory([FromBody] UpdateHistoryCommand request)
-            => Ok(await mediator.Send(request));
+            => this.HandleResult(await mediator.Send(request));
 
         [HttpPost]
         [Route("Backgrouds")]
         public async Task<IActionResult> CreateBackgroundHistory([FromBody] CreateBackgroudCommand request)
-            => Ok(await mediator.Send(request));
+            => this.HandleResult(await mediator.Send(request));
 
         [HttpPut]
         [Route("Backgrouds")]
@@ -43,6 +44,11 @@ namespace api_patient.Controllers
         [HttpPost]
         [Route("Evolutions")]
         public async Task<IActionResult> CreateEvolutionHistory([FromBody] CreateEvolutionCommand request)
-            => Ok(await mediator.Send(request));
+            => this.HandleResult(await mediator.Send(request));
+
+        [HttpPut]
+        [Route("Evolutions")]
+        public async Task<IActionResult> UpdateEvolutionHistory([FromBody] UpdateEvolutionCommand request)
+            => this.HandleResult(await mediator.Send(request));
     }
 }

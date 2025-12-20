@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Patients.UpdatePatient;
 
-internal class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result<Guid>>,
+public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result<Guid>>,
     IRequestHandler<UpdatePatientContactCommand, Result<Guid>>
 {
     private readonly IPatientRepository _patientRepository;

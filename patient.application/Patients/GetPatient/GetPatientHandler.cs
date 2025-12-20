@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Patients.GetPatient;
 
-internal class GetPatientHandler : IRequestHandler<GetPatientCommand, Result<Patient>>,
+public class GetPatientHandler : IRequestHandler<GetPatientCommand, Result<Patient>>,
     IRequestHandler<GetPatientListCommand, Result<PagedResult<Patient>>>
 {
     private readonly IPatientRepository _patientRepository;

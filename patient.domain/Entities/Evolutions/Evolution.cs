@@ -31,5 +31,17 @@ public class Evolution : Entity
         MedicOrder = medicOrder;
     }
 
+    public void Update(string description, string observations,  string medicOrder)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("La descripción no puede estar vacía", nameof(description));
+        if (string.IsNullOrWhiteSpace(medicOrder))
+            throw new ArgumentException("La orden médica no puede estar vacía", nameof(medicOrder));
+        RegisterDate = DateTime.Now.ToUniversalTime();
+        Description = description;
+        Observations = observations;
+        MedicOrder = medicOrder;
+    }
+
     private Evolution() : base() { }
 }

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Patients.DeletePatient;
 
-internal class DeletePatientHandler : IRequestHandler<DeletePatientContactCommand, Result<Guid>>
+public class DeletePatientHandler : IRequestHandler<DeletePatientContactCommand, Result<Guid>>
 {
 
     private readonly IPatientRepository _patientRepository;

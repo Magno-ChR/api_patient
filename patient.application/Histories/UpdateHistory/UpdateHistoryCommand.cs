@@ -11,3 +11,5 @@ namespace patient.application.Histories.UpdateHistory;
 public record UpdateHistoryCommand(Guid HistoryId, string Reason, string? Diagnostic, string? Treatment) : IRequest<Result<Guid>>;
 
 public record UpdateBackgroundCommand(Guid HistoryId, Guid BackgroudId, string Description) : IRequest<Result<Guid>>;
+
+public record UpdateEvolutionCommand(Guid HistoryId, Guid EvolutionId, string Description, string Observation, string MedicOrder) : IRequest<Result<Guid>>;

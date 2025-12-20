@@ -101,6 +101,14 @@ namespace patient.domain.Entities.Histories
             AddDomainEvent(domainEvent);
         }
 
+        public void UpdateEvolution(Guid historyId, Guid evolutionId, string description, string observations, string medicOrder)
+        {
+            var existingEvolution = _evolutions.FirstOrDefault(e => e.Id == evolutionId && e.HistoryId == historyId);
+            if (existingEvolution is null)
+                throw new ArgumentException("La evolución no existe en esta historia");
+            existingEvolution.Update(description, observations, medicOrder);
+        }
+
         public void RemoveEvolution(Evolution evolution)
         {
             if (evolution == null)

@@ -11,7 +11,8 @@ using System.Threading.Tasks;
 namespace patient.application.Histories.UpdateHistory;
 
 internal class UpdateHistoryHandler : IRequestHandler<UpdateHistoryCommand, Result<Guid>>,
-    IRequestHandler<UpdateBackgroundCommand, Result<Guid>>
+    IRequestHandler<UpdateBackgroundCommand, Result<Guid>>,
+    IRequestHandler<UpdateEvolutionCommand, Result<Guid>>
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -58,6 +59,28 @@ internal class UpdateHistoryHandler : IRequestHandler<UpdateHistoryCommand, Resu
         catch (Exception ex)
         {
             return Result.Failure<Guid>(Error.Problem("Background.Update.Error", "Error al actualizar el antecedente: {0}", ex.Message));
+        }
+    }
+
+    public async Task<Result<Guid>> Handle(UpdateEvolutionCommand request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var history = await _historyRepository.GetByIdAsync(request.HistoryId, readOnly: false);
+            if (history is null)
+                return Result<Guid>.ValidationFailure(Error.NotFound("Evolution.History.Not.Found", "Historia no encontrada"));
+            history.UpdateEvolution(request.HistoryId, request.EvolutionId, request.Description, request.Observation, request.MedicOrder);
+            await _historyRepository.UpdateAsync(history);
+            await _unitOfWork.CommitAsync(cancellationToken);
+            return Result.Success(history.Id);
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Failure<Guid>(new Error("Evolution.Update.Error", ex.Message, ErrorType.Validation));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<Guid>(Error.Problem("Evolution.Update.Error", "Error al actualizar la evolución: {0}", ex.Message));
         }
     }
 }
