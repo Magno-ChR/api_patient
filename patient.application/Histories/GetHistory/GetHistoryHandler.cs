@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Histories.GetHistory;
 
-internal class GetHistoryHandler : IRequestHandler<GetHistoryCommand, Result<History>>
+public class GetHistoryHandler : IRequestHandler<GetHistoryCommand, Result<History>>
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.FoodPlans.CreateFoodPlan;
 
-internal class CreateFoodPlandHandler : IRequestHandler<CreateFoodPlanCommand, Result<Guid>>
+public class CreateFoodPlandHandler : IRequestHandler<CreateFoodPlanCommand, Result<Guid>>
 {
     private readonly IFoodPlanRepository _foodPlanRepository;
     private readonly IUnitOfWork _unitOfWork;

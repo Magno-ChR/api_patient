@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Histories.CreateHistory;
 
-internal class CreateHistoryHandler : IRequestHandler<CreateHistoryCommand, Result<Guid>>,
+public class CreateHistoryHandler : IRequestHandler<CreateHistoryCommand, Result<Guid>>,
     IRequestHandler<CreateBackgroudCommand, Result<Guid>>,
     IRequestHandler<CreateEvolutionCommand, Result<Guid>>
 {

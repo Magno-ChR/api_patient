@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace patient.application.Histories.UpdateHistory;
 
-internal class UpdateHistoryHandler : IRequestHandler<UpdateHistoryCommand, Result<Guid>>,
+public class UpdateHistoryHandler : IRequestHandler<UpdateHistoryCommand, Result<Guid>>,
     IRequestHandler<UpdateBackgroundCommand, Result<Guid>>,
     IRequestHandler<UpdateEvolutionCommand, Result<Guid>>
 {
