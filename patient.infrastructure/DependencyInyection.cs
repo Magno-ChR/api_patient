@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using patient.application;
@@ -6,10 +6,12 @@ using patient.domain.Abstractions;
 using patient.domain.Entities.FoodPlans;
 using patient.domain.Entities.Histories;
 using patient.domain.Entities.Patients;
+using patient.infrastructure.Extensions;
 using patient.infrastructure.Percistence;
 using patient.infrastructure.Percistence.DomainModel;
 using patient.infrastructure.Percistence.PersistenceModel;
 using patient.infrastructure.Percistence.Repositories;
+using patient.infrastructure.Security;
 
 namespace patient.infrastructure;
 
@@ -17,6 +19,9 @@ public static class DependencyInyection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+        services.AddJwtAuthentication(configuration);
+
         services.AddApplication()
             .AddPersistence(configuration);
         return services;

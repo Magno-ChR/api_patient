@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,5 +13,6 @@ public enum ErrorType
     Problem = 2,
     NotFound = 3,
     Conflict = 4,
-    Unauthorized = 5
+    Unauthorized = 5,
+    Forbidden = 6
 }

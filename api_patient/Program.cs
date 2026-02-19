@@ -1,5 +1,8 @@
 using AspNetCore.Swagger.Themes;
+using api_patient.Middleware;
 using api_patient.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.OpenApi.Models;
 using patient.infrastructure;
 
@@ -14,6 +17,7 @@ namespace api_patient
             // Add services to the container.
 
             builder.Services.AddControllers();
+            builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
             builder.Services.AddInfrastructure(builder.Configuration);
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -22,7 +26,29 @@ namespace api_patient
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "API_PATIENT",
-                    Version = "v0.1.1"
+                    Version = "v0.2.0"
+                });
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "JWT. Pegar el token (con \"Bearer \"). Ejemplo: Bearer {token}",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
                 });
             });
 
@@ -40,8 +66,8 @@ namespace api_patient
 
             app.UseHttpsRedirection();
             app.ApplyMigrations();
+            app.UseAuthentication();
             app.UseAuthorization();
-
 
             app.MapControllers();
 

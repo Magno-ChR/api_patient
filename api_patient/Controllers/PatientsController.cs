@@ -1,5 +1,6 @@
-﻿using api_patient.Extensions;
+using api_patient.Extensions;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ namespace api_patient.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = "patient")]
 public class PatientsController : ControllerBase
 {
     private readonly IMediator _mediator;

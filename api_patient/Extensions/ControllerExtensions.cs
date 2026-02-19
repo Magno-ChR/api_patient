@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using patient.domain.Results;
 
 namespace api_patient.Extensions;
@@ -20,8 +20,9 @@ public static class ControllerExtensions
         {
             ErrorType.NotFound => controller.NotFound(Error(result)), // 404
             ErrorType.Validation => controller.BadRequest(Error(result)), // 400
-            ErrorType.Conflict => controller.Conflict(new { error.Code, error.Description }), // 409
-            ErrorType.Unauthorized => controller.Unauthorized(), // 401
+            ErrorType.Conflict => controller.Conflict(Error(result)), // 409 (mismo formato Result)
+            ErrorType.Unauthorized => controller.Unauthorized(Error(result)), // 401
+            ErrorType.Forbidden => controller.StatusCode(403, Error(result)), // 403
 
             _ => controller.Problem(error.Description), // 500
         };
