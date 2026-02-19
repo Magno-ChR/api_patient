@@ -48,7 +48,7 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
         // Cargar el agregado (no readonly porque vamos a modificarlo)
         var patient = await _patientRepository.GetByIdAsync(request.PatientId, readOnly: false);
         if (patient is null)
-            return Result.Failure<Guid>(Error.NotFound("Patient.NotFound", "Paciente no encontrado"));
+            return Result.Failure<Guid>(Error.Problem("Patient.NotFound", $"El paciente con ID {request.PatientId} no existe"));
 
 
         // Delegar la creación del contact al agregado para mantener invariantes
