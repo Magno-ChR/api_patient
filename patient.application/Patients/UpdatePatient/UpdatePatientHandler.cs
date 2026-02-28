@@ -1,12 +1,10 @@
-﻿using MediatR;
+using Joseco.Outbox.Contracts.Model;
+using Joseco.Outbox.Contracts.Service;
+using MediatR;
 using patient.domain.Abstractions;
 using patient.domain.Entities.Patients;
+using patient.domain.Entities.Patients.Events;
 using patient.domain.Results;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace patient.application.Patients.UpdatePatient;
 
@@ -15,20 +13,24 @@ public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IOutboxService<DomainEvent> _outboxService;
 
-    public UpdatePatientHandler(IPatientRepository patientRepository, IUnitOfWork unitOfWork)
+    public UpdatePatientHandler(
+        IPatientRepository patientRepository,
+        IUnitOfWork unitOfWork,
+        IOutboxService<DomainEvent> outboxService)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
+        _outboxService = outboxService;
     }
 
     public async Task<Result<Guid>> Handle(UpdatePatientCommand request, CancellationToken cancellationToken)
     {
-        // Cargar el agregado (no readonly porque vamos a modificarlo)
         var patient = await _patientRepository.GetByIdAsync(request.patientId, readOnly: false);
         if (patient is null)
             return Result.Failure<Guid>(Error.NotFound("Patient.NotFound", "Paciente no encontrado"));
-        // Actualizar los datos del paciente
+
         patient.Update(
             patient,
             request.FirstName,
@@ -42,8 +44,11 @@ public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result
             request.Alergies
         );
 
-        // Persistir el agregado
         await _patientRepository.UpdateAsync(patient);
+
+        var outboxMessage = new OutboxMessage<DomainEvent>(new PatientUpdatedEvent(patient.ToOutboxPayload()));
+        await _outboxService.AddAsync(outboxMessage);
+
         await _unitOfWork.CommitAsync(cancellationToken);
         return Result.Success(patient.Id);
     }

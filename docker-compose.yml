@@ -10,6 +10,17 @@ services:
     depends_on:
       - postgres
 
+  worker:
+    build:
+      context: .
+      dockerfile: patient.WorkerService/Dockerfile
+    container_name: patient_worker_test
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=mydatabase;Username=myuser;Password=mypassword;"
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:15
     container_name: postgres_patient

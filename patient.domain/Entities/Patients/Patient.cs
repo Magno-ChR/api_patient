@@ -1,4 +1,4 @@
-﻿using patient.domain.Abstractions;
+using patient.domain.Abstractions;
 using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Patients.Events;
 using patient.domain.Shared;
@@ -101,6 +101,12 @@ public class Patient : AggregateRoot
         if (contact != null)
             contact.logicDelete();
     }
+
+    /// <summary>
+    /// Datos del paciente para el outbox (sin la lista de contactos).
+    /// </summary>
+    public PatientOutboxPayload ToOutboxPayload() =>
+        new(Id, FirstName, MiddleName, LastName, BloodType, DocumentNumber, DateOfBirth, Ocupation, Religion, Alergies);
 
     private Patient() : base() { }
 

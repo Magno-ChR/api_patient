@@ -1,7 +1,10 @@
-﻿using MediatR;
+using Joseco.Outbox.Contracts.Model;
+using Joseco.Outbox.Contracts.Service;
+using MediatR;
 using patient.domain.Abstractions;
 using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Patients;
+using patient.domain.Entities.Patients.Events;
 using patient.domain.Results;
 
 
@@ -13,11 +16,16 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IOutboxService<DomainEvent> _outboxService;
 
-    public CreatePatientHandler(IPatientRepository patientRepository ,IUnitOfWork unitOfWork)
+    public CreatePatientHandler(
+        IPatientRepository patientRepository,
+        IUnitOfWork unitOfWork,
+        IOutboxService<DomainEvent> outboxService)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
+        _outboxService = outboxService;
     }
 
     public async Task<Result<Guid>> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
@@ -36,6 +44,9 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
         );
 
         await _patientRepository.AddAsync(item);
+
+        var outboxMessage = new OutboxMessage<DomainEvent>(new PatientCreatedEvent(item.ToOutboxPayload()));
+        await _outboxService.AddAsync(outboxMessage);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 

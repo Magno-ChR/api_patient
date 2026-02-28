@@ -13,7 +13,7 @@ namespace api_patient.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "patient")]
+//[Authorize(Roles = "patient")]
 public class PatientsController : ControllerBase
 {
     private readonly IMediator _mediator;

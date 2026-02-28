@@ -1,4 +1,5 @@
-﻿using Moq;
+using Joseco.Outbox.Contracts.Service;
+using Moq;
 using patient.application.Patients.CreatePatient;
 using patient.application.Patients.DeletePatient;
 using patient.application.Patients.GetPatient;
@@ -19,7 +20,8 @@ public class PatientHandlerTest
         // Arrange
         var patientRepositoryMock = new Mock<IPatientRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
-        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object);
+        var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
+        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object, outboxServiceMock.Object);
         var createPatientCommand = new CreatePatientCommand("Jhon", "M", "Doe", BloodType.OPositive, "123456789", new DateOnly(1990, 1, 1), "Engineer", "None", "Peanuts");
 
         // Act
@@ -56,9 +58,11 @@ public class PatientHandlerTest
             .Setup(pr => pr.GetByIdAsync(patientId, false))
             .ReturnsAsync(patient);
 
+        var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
-            unitOfWorkMock.Object
+            unitOfWorkMock.Object,
+            outboxServiceMock.Object
         );
 
         var command = new CreatePatientContactCommand(
@@ -106,9 +110,11 @@ public class PatientHandlerTest
             .Setup(pr => pr.GetByIdAsync(patientId, false))
             .ReturnsAsync((Patient)null);
 
+        var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
-            unitOfWorkMock.Object
+            unitOfWorkMock.Object,
+            outboxServiceMock.Object
         );
 
         var command = new CreatePatientContactCommand(
@@ -308,7 +314,8 @@ public class PatientHandlerTest
         repoMock.Setup(r => r.GetByIdAsync(patient.Id, false))
                 .ReturnsAsync(patient);
 
-        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object);
+        var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
+        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object);
 
         var command = new UpdatePatientCommand(
             patient.Id,
@@ -360,7 +367,8 @@ public class PatientHandlerTest
         repoMock.Setup(r => r.GetByIdAsync(patientId, false))
                 .ReturnsAsync(patient);
 
-        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object);
+        var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
+        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object);
 
         var command = new UpdatePatientContactCommand(
             patientId,
