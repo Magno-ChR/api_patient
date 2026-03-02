@@ -43,7 +43,7 @@ public class Contact : Entity
         Floor = floor;
         Coords = coords;
         IsActive = true;
-    }   
+    }
 
     // Nuevo: método para actualizar un contacto preservando las validaciones del dominio
     public void Update(string direction, string reference, string phoneNumber, string floor, string coords)
