@@ -9,6 +9,7 @@ using patient.domain.Entities.FoodPlans;
 using patient.domain.Entities.Histories;
 using patient.domain.Entities.Patients;
 using patient.infrastructure.Extensions;
+using patient.infrastructure.Integration;
 using patient.infrastructure.Percistence;
 using patient.infrastructure.Percistence.DomainModel;
 using patient.infrastructure.Percistence.Outbox;
@@ -53,5 +54,19 @@ public static class DependencyInyection
 
         services.AddScoped<Joseco.Outbox.EFCore.Persistence.IOutboxDatabase<DomainEvent>, OutboxDatabase>();
         services.AddOutbox<DomainEvent>();
+
+        services.Configure<RabbitMqPatientPublisherOptions>(configuration.GetSection(RabbitMqPatientPublisherOptions.SectionName));
+        services.AddScoped<IPatientEventPublisher, PatientEventRabbitMqPublisher>();
+    }
+
+    /// <summary>
+    /// Registra el consumidor de RabbitMQ para foodplan.created y foodplan.updated.
+    /// Llamar desde el Worker, no desde la API.
+    /// </summary>
+    public static IServiceCollection AddRabbitMqFoodPlanConsumer(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<RabbitMqFoodPlanOptions>(configuration.GetSection(RabbitMqFoodPlanOptions.SectionName));
+        services.AddHostedService<FoodPlanEventConsumerHostedService>();
+        return services;
     }
 }

@@ -4,7 +4,9 @@ using api_patient.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.OpenApi.Models;
+using patient.domain.Abstractions;
 using patient.infrastructure;
+using Joseco.Outbox.EFCore;
 
 namespace api_patient
 {
@@ -19,6 +21,8 @@ namespace api_patient
             builder.Services.AddControllers();
             builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddRabbitMqFoodPlanConsumer(builder.Configuration);
+            builder.Services.AddOutboxBackgroundService<DomainEvent>(5000);
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>

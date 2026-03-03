@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using patient.domain.Abstractions;
 using patient.domain.Entities.FoodPlans;
 using patient.domain.Entities.Patients;
@@ -24,10 +24,7 @@ public class CreateFoodPlandHandler : IRequestHandler<CreateFoodPlanCommand, Res
 
     public async Task<Result<Guid>> Handle(CreateFoodPlanCommand request, CancellationToken cancellationToken)
     {
-        var item = new FoodPlan(
-            Guid.NewGuid(),
-            request.Name
-        );
+        var item = FoodPlan.Create(Guid.NewGuid(), request.Name);
         await _foodPlanRepository.AddAsync(item);
         await _unitOfWork.CommitAsync(cancellationToken);
 

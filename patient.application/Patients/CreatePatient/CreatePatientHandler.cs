@@ -17,15 +17,18 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IOutboxService<DomainEvent> _outboxService;
+    private readonly IMediator _mediator;
 
     public CreatePatientHandler(
         IPatientRepository patientRepository,
         IUnitOfWork unitOfWork,
-        IOutboxService<DomainEvent> outboxService)
+        IOutboxService<DomainEvent> outboxService,
+        IMediator mediator)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
         _outboxService = outboxService;
+        _mediator = mediator;
     }
 
     public async Task<Result<Guid>> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
@@ -45,10 +48,14 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 
         await _patientRepository.AddAsync(item);
 
-        var outboxMessage = new OutboxMessage<DomainEvent>(new PatientCreatedEvent(item.ToOutboxPayload()));
+        var createdEvent = new PatientCreatedEvent(item.ToOutboxPayload());
+        var outboxMessage = new OutboxMessage<DomainEvent>(createdEvent);
         await _outboxService.AddAsync(outboxMessage);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        // Publicar a RabbitMQ tras commit (Joseco.Outbox no despacha a MediatR al procesar el outbox)
+        await _mediator.Publish(createdEvent, cancellationToken);
 
         return Result.Success(item.Id);
 

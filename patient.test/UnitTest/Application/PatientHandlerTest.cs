@@ -1,4 +1,5 @@
 using Joseco.Outbox.Contracts.Service;
+using MediatR;
 using Moq;
 using patient.application.Patients.CreatePatient;
 using patient.application.Patients.DeletePatient;
@@ -21,7 +22,9 @@ public class PatientHandlerTest
         var patientRepositoryMock = new Mock<IPatientRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
-        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object, outboxServiceMock.Object);
+        var mediatorMock = new Mock<IMediator>();
+        mediatorMock.Setup(m => m.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object, outboxServiceMock.Object, mediatorMock.Object);
         var createPatientCommand = new CreatePatientCommand("Jhon", "M", "Doe", BloodType.OPositive, "123456789", new DateOnly(1990, 1, 1), "Engineer", "None", "Peanuts");
 
         // Act
@@ -59,10 +62,13 @@ public class PatientHandlerTest
             .ReturnsAsync(patient);
 
         var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
+        var mediatorMock = new Mock<IMediator>();
+        mediatorMock.Setup(m => m.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
             unitOfWorkMock.Object,
-            outboxServiceMock.Object
+            outboxServiceMock.Object,
+            mediatorMock.Object
         );
 
         var command = new CreatePatientContactCommand(
@@ -111,10 +117,13 @@ public class PatientHandlerTest
             .ReturnsAsync((Patient)null);
 
         var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
+        var mediatorMock = new Mock<IMediator>();
+        mediatorMock.Setup(m => m.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
             unitOfWorkMock.Object,
-            outboxServiceMock.Object
+            outboxServiceMock.Object,
+            mediatorMock.Object
         );
 
         var command = new CreatePatientContactCommand(
@@ -315,7 +324,9 @@ public class PatientHandlerTest
                 .ReturnsAsync(patient);
 
         var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
-        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object);
+        var mediatorMock = new Mock<IMediator>();
+        mediatorMock.Setup(m => m.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object, mediatorMock.Object);
 
         var command = new UpdatePatientCommand(
             patient.Id,
@@ -368,7 +379,9 @@ public class PatientHandlerTest
                 .ReturnsAsync(patient);
 
         var outboxServiceMock = new Mock<IOutboxService<DomainEvent>>();
-        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object);
+        var mediatorMock = new Mock<IMediator>();
+        mediatorMock.Setup(m => m.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new UpdatePatientHandler(repoMock.Object, uowMock.Object, outboxServiceMock.Object, mediatorMock.Object);
 
         var command = new UpdatePatientContactCommand(
             patientId,
