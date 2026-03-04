@@ -11,9 +11,9 @@ using patient.application.Patients.UpdatePatient;
 
 namespace api_patient.Controllers;
 
-[Route("api/[controller]")]
+[Route("api/patient/[controller]")]
 [ApiController]
-//[Authorize(Roles = "patient")]
+[Authorize(Roles = "patient,admin,doctor")]
 public class PatientsController : ControllerBase
 {
     private readonly IMediator _mediator;

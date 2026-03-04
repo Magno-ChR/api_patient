@@ -1,5 +1,6 @@
 ﻿using api_patient.Extensions;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using patient.application.Histories.CreateHistory;
@@ -8,8 +9,9 @@ using patient.application.Histories.UpdateHistory;
 
 namespace api_patient.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/patient/[controller]")]
     [ApiController]
+    [Authorize(Roles = "patient,admin,doctor")]
     public class HistoriesController : ControllerBase
     {
         private readonly IMediator mediator;

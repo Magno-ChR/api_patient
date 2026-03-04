@@ -1,38 +1,47 @@
 services:
-  api:
-    image: geonmagno/api_patient:0.1.1
-    container_name: api_patient_test
-    ports:
-      - "8080:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: "Development"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=mydatabase;Username=myuser;Password=mypassword;"
-    depends_on:
-      - postgres
 
-  worker:
-    build:
-      context: .
-      dockerfile: patient.WorkerService/Dockerfile
-    container_name: patient_worker_test
-    environment:
-      ASPNETCORE_ENVIRONMENT: "Development"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=mydatabase;Username=myuser;Password=mypassword;"
-    depends_on:
-      - postgres
-
+  # ─── Base de datos PostgreSQL ─────────────────────────────────────────────
   postgres:
     image: postgres:15
-    container_name: postgres_patient
+    container_name: patient-postgres-db
     restart: always
     environment:
-      POSTGRES_DB: "mydatabase"
-      POSTGRES_USER: "myuser"
-      POSTGRES_PASSWORD: "mypassword"
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient
+      POSTGRES_PASSWORD: patient
+    networks:
+      - nutricenter_net
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patient -d patient_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
+  # ─── API Patient ──────────────────────────────────────────────────────────
+  api:
+    image: geonmagno/api_patient:0.2.2
+    container_name: patient-web-ms
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
+    networks:
+      - nutricenter_net
+
+# ─── Network compartida ─────────────────────────────────────────────────────
+networks:
+  nutricenter_net:
+    driver: bridge
+
+# ─── Volumen persistente ────────────────────────────────────────────────────
 volumes:
   postgres_data:
