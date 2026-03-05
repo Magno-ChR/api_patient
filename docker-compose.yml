@@ -1,7 +1,7 @@
 services:
 
   # ─── Base de datos PostgreSQL ─────────────────────────────────────────────
-  postgres:
+  patient-postgres:
     image: postgres:15
     container_name: patient-postgres-db
     restart: always
@@ -22,14 +22,14 @@ services:
       retries: 10
 
   # ─── API Patient ──────────────────────────────────────────────────────────
-  api:
+  api-patient:
     image: geonmagno/api_patient:0.2.2
     container_name: patient-web-ms
     restart: unless-stopped
     ports:
       - "5003:5003"
     depends_on:
-      postgres:
+      patient-postgres:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
