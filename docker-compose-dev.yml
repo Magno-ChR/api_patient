@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: patient
       POSTGRES_PASSWORD: patient
     networks:
-      - nutricenter_net
+      - shared-network
     volumes:
       - patient_postgres_data:/var/lib/postgresql/data
     ports:
