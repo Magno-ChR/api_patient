@@ -21,7 +21,7 @@ services:
       retries: 10
   # ─── API Patient ──────────────────────────────────────────────────────────
   api-patient:
-    image: geonmagno/api_patient:0.2.2
+    image: geonmagno/api_patient:0.2.3
     container_name: patient-web-ms
     restart: unless-stopped
     ports:
@@ -34,17 +34,27 @@ services:
       # Escuchar en todas las interfaces para que el API Gateway y otros contenedores puedan conectar
       ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      # RabbitMQ: usar el nombre del servicio como host dentro de la red Docker
+      # RabbitMQ (ms-infrastructure): colas/exchanges de https://github.com/JoseLCT/ms-infrastructure (definitions.json)
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: guest
-      RabbitMQ__Password: guest
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: StrongPassword123
+      RabbitMQ__VirtualHost: /
+      # Cola de ms-infrastructure para el ms patient (meal-plan.* desde exchange meal-plans)
+      RabbitMQ__FoodPlansQueue: ms-patients-queue
+      # Publicación a exchange "patients" (patient.created / patient.updated)
+      RabbitMQ__PatientsExchange: patients
     networks:
       - nutricenter_net
-# ─── Red compartida ─────────────────────────────────────────────────────────
+      - ms_infrastructure_net  # Para resolver hostname "rabbitmq" (contenedor de ms-infrastructure)
+# ─── Redes ───────────────────────────────────────────────────────────────────
 networks:
   nutricenter_net:
     driver: bridge
+  # Red de ms-infrastructure donde ya corre RabbitMQ (evita duplicar RabbitMQ)
+  ms_infrastructure_net:
+    external: true
+    name: ms-infrastructure_nutricenter_net
 # ─── Volúmenes nombrados ────────────────────────────────────────────────────
 volumes:
   patient_postgres_data:

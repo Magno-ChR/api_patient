@@ -42,16 +42,12 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
                 HostName = _options.HostName,
                 Port = _options.Port,
                 UserName = _options.UserName,
-                Password = _options.Password
+                Password = _options.Password,
+                VirtualHost = _options.VirtualHost
             };
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
-
-            channel.ExchangeDeclare(
-                _options.PatientsExchange,
-                ExchangeType.Topic,
-                durable: true,
-                autoDelete: false);
+            // Exchange "patients" ya existe en ms-infrastructure (definitions.json); no declarar.
 
             var json = JsonSerializer.Serialize(payload, JsonOptions);
             var body = Encoding.UTF8.GetBytes(json);

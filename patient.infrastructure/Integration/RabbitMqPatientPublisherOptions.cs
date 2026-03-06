@@ -9,6 +9,8 @@ public sealed class RabbitMqPatientPublisherOptions
     public int Port { get; set; } = 5672;
     public string UserName { get; set; } = "guest";
     public string Password { get; set; } = "guest";
+    /// <summary>Virtual host (ms-infrastructure usa "/").</summary>
+    public string VirtualHost { get; set; } = "/";
 
     public string PatientsExchange { get; set; } = "patients";
     public string PatientCreatedRoutingKey { get; set; } = "patient.created";

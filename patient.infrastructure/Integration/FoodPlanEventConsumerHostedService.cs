@@ -32,57 +32,66 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
+        var delayMs = _options.ReconnectDelaySeconds * 1000;
+        var attempt = 0;
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            var factory = new ConnectionFactory
+            try
             {
-                HostName = _options.HostName,
-                Port = _options.Port,
-                UserName = _options.UserName,
-                Password = _options.Password,
-                DispatchConsumersAsync = true
-            };
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
+                if (_options.MaxReconnectAttempts > 0 && attempt >= _options.MaxReconnectAttempts)
+                {
+                    _logger.LogError("Max RabbitMQ reconnect attempts ({Max}) reached. Stopping consumer.", _options.MaxReconnectAttempts);
+                    return;
+                }
 
-            _channel.ExchangeDeclare(
-                _options.FoodPlansExchange,
-                ExchangeType.Topic,
-                durable: true,
-                autoDelete: false);
+                if (attempt > 0)
+                    _logger.LogInformation("RabbitMQ reconnect attempt {Attempt}…", attempt + 1);
 
-            _channel.QueueDeclare(
-                _options.FoodPlansQueue,
-                durable: true,
-                exclusive: false,
-                autoDelete: false);
+                var factory = new ConnectionFactory
+                {
+                    HostName = _options.HostName,
+                    Port = _options.Port,
+                    UserName = _options.UserName,
+                    Password = _options.Password,
+                    VirtualHost = _options.VirtualHost,
+                    DispatchConsumersAsync = true,
+                    AutomaticRecoveryEnabled = true,
+                    NetworkRecoveryInterval = TimeSpan.FromSeconds(_options.ReconnectDelaySeconds)
+                };
+                _connection = factory.CreateConnection();
+                _channel = _connection.CreateModel();
+                // Exchange "meal-plans" y cola "ms-patients-queue" (y bindings) ya existen en ms-infrastructure; no declarar.
 
-            _channel.QueueBind(
-                _options.FoodPlansQueue,
-                _options.FoodPlansExchange,
-                _options.FoodPlanCreatedRoutingKey);
-            _channel.QueueBind(
-                _options.FoodPlansQueue,
-                _options.FoodPlansExchange,
-                _options.FoodPlanUpdatedRoutingKey);
+                var consumer = new AsyncEventingBasicConsumer(_channel);
+                consumer.Received += (_, ea) => ProcessMessageAsync(ea);
 
-            var consumer = new AsyncEventingBasicConsumer(_channel);
-            consumer.Received += (_, ea) => ProcessMessageAsync(ea);
+                _channel.BasicConsume(
+                    _options.FoodPlansQueue,
+                    autoAck: false,
+                    consumer);
 
-            _channel.BasicConsume(
-                _options.FoodPlansQueue,
-                autoAck: false,
-                consumer);
-
-            _logger.LogInformation("FoodPlan event consumer started. Queue: {Queue}", _options.FoodPlansQueue);
+                _logger.LogInformation(
+                    "Meal-plan event consumer started (ms-infrastructure). Queue: {Queue}, Exchange: {Exchange}",
+                    _options.FoodPlansQueue, _options.FoodPlansExchange);
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start RabbitMQ FoodPlan consumer (attempt {Attempt})", attempt + 1);
+                _channel?.Dispose();
+                _connection?.Dispose();
+                _channel = null;
+                _connection = null;
+                attempt++;
+                await Task.Delay(delayMs, stoppingToken);
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to start RabbitMQ FoodPlan consumer");
-            throw;
-        }
-
-        await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
     private async Task ProcessMessageAsync(BasicDeliverEventArgs ea)
