@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: patient
       POSTGRES_PASSWORD: patient
     networks:
-      - nutricenter_net
+      - shared-network
     volumes:
       - patient_postgres_data:/var/lib/postgresql/data
     ports:
@@ -37,14 +37,10 @@ services:
       # RabbitMQ: usar el nombre del servicio como host dentro de la red Docker
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: guest
-      RabbitMQ__Password: guest
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: StrongPassword123
     networks:
-      - nutricenter_net
-# ─── Red compartida ─────────────────────────────────────────────────────────
-networks:
-  nutricenter_net:
-    driver: bridge
+      - shared-network
 # ─── Volúmenes nombrados ────────────────────────────────────────────────────
 volumes:
   patient_postgres_data:
