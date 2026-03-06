@@ -1,6 +1,5 @@
 services:
-
-  # ─── Base de datos PostgreSQL ─────────────────────────────────────────────
+  # ─── Base de datos PostgreSQL - Patient ───────────────────────────────────
   patient-postgres:
     image: postgres:15
     container_name: patient-postgres-db
@@ -12,36 +11,40 @@ services:
     networks:
       - nutricenter_net
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - patient_postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5022:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U patient -d patient_db"]
       interval: 5s
       timeout: 5s
       retries: 10
-
   # ─── API Patient ──────────────────────────────────────────────────────────
   api-patient:
     image: geonmagno/api_patient:0.2.2
     container_name: patient-web-ms
     restart: unless-stopped
     ports:
-      - "5003:5003"
+      - "5002:5002"
     depends_on:
       patient-postgres:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      # Escuchar en todas las interfaces para que el API Gateway y otros contenedores puedan conectar
+      ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
+      # RabbitMQ: usar el nombre del servicio como host dentro de la red Docker
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
     networks:
       - nutricenter_net
-
-# ─── Network compartida ─────────────────────────────────────────────────────
+# ─── Red compartida ─────────────────────────────────────────────────────────
 networks:
   nutricenter_net:
     driver: bridge
-
-# ─── Volumen persistente ────────────────────────────────────────────────────
+# ─── Volúmenes nombrados ────────────────────────────────────────────────────
 volumes:
-  postgres_data:
+  patient_postgres_data:
