@@ -1,13 +1,9 @@
-using Joseco.Outbox.Contracts.Model;
-using Joseco.Outbox.Contracts.Service;
 using MediatR;
 using patient.domain.Abstractions;
 using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Patients;
 using patient.domain.Entities.Patients.Events;
 using patient.domain.Results;
-
-
 
 namespace patient.application.Patients.CreatePatient;
 
@@ -16,19 +12,13 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IOutboxService<DomainEvent> _outboxService;
-    private readonly IMediator _mediator;
 
     public CreatePatientHandler(
         IPatientRepository patientRepository,
-        IUnitOfWork unitOfWork,
-        IOutboxService<DomainEvent> outboxService,
-        IMediator mediator)
+        IUnitOfWork unitOfWork)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
-        _outboxService = outboxService;
-        _mediator = mediator;
     }
 
     public async Task<Result<Guid>> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
@@ -48,17 +38,14 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 
         await _patientRepository.AddAsync(item);
 
-        var createdEvent = new PatientCreatedEvent(item.ToOutboxPayload());
-        var outboxMessage = new OutboxMessage<DomainEvent>(createdEvent);
-        await _outboxService.AddAsync(outboxMessage);
+        // Patrón Outbox al estilo ms-logistic:
+        // el agregado solo agrega un DomainEvent; la infraestructura se encarga de
+        // convertirlo en un mensaje de outbox y el Worker lo publicará a RabbitMQ.
+        item.AddDomainEvent(new PatientCreatedEvent(item.ToOutboxPayload()));
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        // Publicar a RabbitMQ tras commit (Joseco.Outbox no despacha a MediatR al procesar el outbox)
-        await _mediator.Publish(createdEvent, cancellationToken);
-
         return Result.Success(item.Id);
-
     }
 
     public async Task<Result<Guid>> Handle(CreatePatientContactCommand request, CancellationToken cancellationToken)

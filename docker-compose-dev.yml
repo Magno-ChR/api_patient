@@ -1,5 +1,6 @@
 services:
-  # ─── Base de datos PostgreSQL - Patient ───────────────────────────────────
+
+  # --- PostgreSQL - Patient Service ------------------------------------------
   patient-postgres:
     image: postgres:15
     container_name: patient-postgres-db
@@ -8,8 +9,6 @@ services:
       POSTGRES_DB: patient_db
       POSTGRES_USER: patient
       POSTGRES_PASSWORD: patient
-    networks:
-      - shared-network
     volumes:
       - patient_postgres_data:/var/lib/postgresql/data
     ports:
@@ -19,16 +18,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-  # ─── API Patient ──────────────────────────────────────────────────────────
+      start_period: 15s
+    networks:
+      - shared-network
+
+  # --- API Patient Microservice ----------------------------------------------
   api-patient:
     image: geonmagno/api_patient:0.2.3
-    container_name: patient-web-ms
+    container_name: api-patient
     restart: unless-stopped
-    ports:
-      - "5002:5002"
-    depends_on:
-      patient-postgres:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       # Escuchar en todas las interfaces para que el API Gateway y otros contenedores puedan conectar
@@ -42,19 +40,46 @@ services:
       RabbitMQ__VirtualHost: /
       # Cola de ms-infrastructure para el ms patient (meal-plan.* desde exchange meal-plans)
       RabbitMQ__FoodPlansQueue: ms-patients-queue
-      # Publicación a exchange "patients" (patient.created / patient.updated)
+      # Publicaci�n a exchange "patients" (patient.created / patient.updated)
       RabbitMQ__PatientsExchange: patients
+      RabbitMQ__ReconnectDelaySeconds: 5
+      RabbitMQ__MaxReconnectAttempts: 0
+    ports:
+      - "5002:5002"
+    depends_on:
+      patient-postgres:
+        condition: service_healthy
     networks:
-      - nutricenter_net
-      - ms_infrastructure_net  # Para resolver hostname "rabbitmq" (contenedor de ms-infrastructure)
-# ─── Redes ───────────────────────────────────────────────────────────────────
+      - shared-network
+
+  # --- Worker Patient (Outbox + RabbitMQ consumer) ---------------------------
+  patient-worker:
+    image: geonmagno/patient_worker:0.2.3
+    container_name: patient-worker
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: StrongPassword123
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__FoodPlansQueue: ms-patients-queue
+      RabbitMQ__PatientsExchange: patients
+      RabbitMQ__ReconnectDelaySeconds: 5
+      RabbitMQ__MaxReconnectAttempts: 0
+    depends_on:
+      patient-postgres:
+        condition: service_healthy
+    networks:
+      - shared-network
+
+# --- Redes -------------------------------------------------------------------
 networks:
-  nutricenter_net:
+  shared-network:
     driver: bridge
-  # Red de ms-infrastructure donde ya corre RabbitMQ (evita duplicar RabbitMQ)
-  ms_infrastructure_net:
-    external: true
-    name: ms-infrastructure_nutricenter_net
-# ─── Volúmenes nombrados ────────────────────────────────────────────────────
+
+# --- Vol�menes nombrados ----------------------------------------------------
 volumes:
   patient_postgres_data:

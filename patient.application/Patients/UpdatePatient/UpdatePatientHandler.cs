@@ -1,5 +1,3 @@
-using Joseco.Outbox.Contracts.Model;
-using Joseco.Outbox.Contracts.Service;
 using MediatR;
 using patient.domain.Abstractions;
 using patient.domain.Entities.Patients;
@@ -13,19 +11,13 @@ public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IOutboxService<DomainEvent> _outboxService;
-    private readonly IMediator _mediator;
 
     public UpdatePatientHandler(
         IPatientRepository patientRepository,
-        IUnitOfWork unitOfWork,
-        IOutboxService<DomainEvent> outboxService,
-        IMediator mediator)
+        IUnitOfWork unitOfWork)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
-        _outboxService = outboxService;
-        _mediator = mediator;
     }
 
     public async Task<Result<Guid>> Handle(UpdatePatientCommand request, CancellationToken cancellationToken)
@@ -49,14 +41,12 @@ public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result
 
         await _patientRepository.UpdateAsync(patient);
 
-        var updatedEvent = new PatientUpdatedEvent(patient.ToOutboxPayload());
-        var outboxMessage = new OutboxMessage<DomainEvent>(updatedEvent);
-        await _outboxService.AddAsync(outboxMessage);
+        // Patrón Outbox al estilo ms-logistic:
+        // solo se agrega un DomainEvent y la infraestructura lo persiste en outbox
+        // y el Worker lo publicará posteriormente a RabbitMQ.
+        patient.AddDomainEvent(new PatientUpdatedEvent(patient.ToOutboxPayload()));
 
         await _unitOfWork.CommitAsync(cancellationToken);
-
-        // Publicar a RabbitMQ tras commit (Joseco.Outbox no despacha a MediatR al procesar el outbox)
-        await _mediator.Publish(updatedEvent, cancellationToken);
 
         return Result.Success(patient.Id);
     }
