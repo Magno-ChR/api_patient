@@ -1,5 +1,16 @@
 root = true
 
+# Forzar tabs (no espacios) en todo el proyecto
+[*]
+indent_style = tab
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
 [*.cs]
+indent_style = tab
+indent_size = 4
 csharp_new_line_before_open_brace = none
 

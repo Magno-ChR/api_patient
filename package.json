@@ -1,0 +1,18 @@
+{
+  "name": "api-patient",
+  "version": "1.0.0",
+  "description": "API Patient - Linting y pre-commit con Husky",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "lint-staged": "^15.0.0"
+  },
+  "lint-staged": {
+    "*.cs": "dotnet format api_patient.sln --include"
+  }
+}
