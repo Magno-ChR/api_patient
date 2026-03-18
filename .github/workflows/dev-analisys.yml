@@ -65,9 +65,9 @@ jobs:
           --verbosity normal patient.test 
           --collect:"XPlat Code Coverage" 
           --results-directory ./coverage
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
           --filter "Category!=Integration&Category!=Contract"
-          
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
+
     - name: Sonarcloud end
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
