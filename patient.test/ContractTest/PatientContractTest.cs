@@ -19,7 +19,7 @@ public class PatientContractTest
         };
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de contrato.")]
     [Trait("Category", "Contract")]
     public async Task GetPatients_Should_Respect_Contract()
     {
@@ -53,7 +53,7 @@ public class PatientContractTest
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de contrato.")]
     [Trait("Category", "Contract")]
     public async Task GetPatients_When_NotFound_Should_Respect_Error_Contract()
     {

@@ -134,7 +134,7 @@ public class PatientIntegrationTest
         return id;
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     [Trait("Category", "Integration")]
     public async Task CreatePatient_ReturnsSuccessAndValidId()
     {
@@ -142,7 +142,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, id);
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     [Trait("Category", "Integration")]
     public async Task GetById_WhenExists_ReturnsPatient()
     {
@@ -168,7 +168,7 @@ public class PatientIntegrationTest
         Assert.Equal(string.Empty, error.GetProperty("code").GetString());
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     [Trait("Category", "Integration")]
     public async Task GetById_WhenNotFound_ReturnsNotFoundAndError()
     {
@@ -189,7 +189,7 @@ public class PatientIntegrationTest
         Assert.True(error.GetProperty("type").GetInt32() > 0);
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     [Trait("Category", "Integration")]
     public async Task CreateContact_ReturnsSuccessAndValidId()
     {
@@ -199,7 +199,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, contactId);
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     [Trait("Category", "Integration")]
     public async Task CreateHistory_ReturnsSuccessAndValidId()
     {
@@ -210,7 +210,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, historyId);
     }
 
-    [Fact]
+    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
     public async Task CompleteWorkflow_PatientContactHistory_Succeeds()
     {
         // 1. Create Patient
