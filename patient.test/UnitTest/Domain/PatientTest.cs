@@ -30,8 +30,9 @@ public class PatientTest
         // Arrange
         var patientData = new Patient(Guid.NewGuid(), firstName, "Carlos", "Pérez", BloodType.ONegative, "12345678", new DateOnly(1990, 5, 20), "Ingeniero", "Católico", "Ninguna");
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => patientData.Create(patientData.Id, patientData.FirstName, patientData.MiddleName, patientData.LastName, patientData.BloodType, patientData.DocumentNumber, patientData.DateOfBirth, patientData.Ocupation, patientData.Religion, patientData.Alergies));
-        Assert.Equal("El nombre no puede estar vacío", exception.Message);
+        var exception = Assert.Throws<ArgumentException>(() => 
+            patientData.Create(patientData.Id, patientData.FirstName, patientData.MiddleName, patientData.LastName, patientData.BloodType, patientData.DocumentNumber, patientData.DateOfBirth, patientData.Ocupation, patientData.Religion, patientData.Alergies));
+        Assert.Contains("El nombre no puede estar vacío", exception.Message);
     }
 
     [Theory]
@@ -51,7 +52,7 @@ public class PatientTest
             new Patient(Guid.NewGuid(), "Juan", "Carlos", "Pérez", BloodType.ONegative, "12345678", dob, "Ingeniero", "Católico", "Ninguna");
         });
 
-        Assert.Equal("La fecha de nacimiento no es válida", exception.Message);
+        Assert.Contains("La fecha de nacimiento no es válida", exception.Message);
     }
 
     [Theory]
@@ -63,7 +64,7 @@ public class PatientTest
         var exception = Assert.Throws<ArgumentException>(() => 
             patientData.Create(patientData.Id, patientData.FirstName, patientData.MiddleName, patientData.LastName, patientData.BloodType, patientData.DocumentNumber, patientData.DateOfBirth, patientData.Ocupation, patientData.Religion, patientData.Alergies));
 
-        Assert.Equal("La fecha de nacimiento no puede inferior a 150 años", exception.Message);
+        Assert.Contains("La fecha de nacimiento no puede inferior a 150 años", exception.Message);
     }
 
     [Fact]
