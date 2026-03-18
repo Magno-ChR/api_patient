@@ -15,6 +15,7 @@ public class PatientIntegrationTest
         BaseAddress = new Uri("https://localhost:7134")
     };
 
+    [Trait("Category", "Integration")]
     private async Task<Guid> CreatePatientAsync()
     {
         var documentNumber = $"DOC-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
@@ -54,6 +55,7 @@ public class PatientIntegrationTest
         return id;
     }
 
+    [Trait("Category", "Integration")]
     private async Task<Guid> CreateContactAsync(Guid patientId)
     {
         var payload = new
@@ -83,6 +85,7 @@ public class PatientIntegrationTest
         return id;
     }
 
+    [Trait("Category", "Integration")]
     private async Task<Guid> CreateFoodPlanAsync()
     {
         var payload = new { name = $"Plan-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}" };
@@ -103,6 +106,7 @@ public class PatientIntegrationTest
         return id;
     }
 
+    [Trait("Category", "Integration")]
     private async Task<Guid> CreateHistoryAsync(Guid patientId, Guid foodPlanId)
     {
         var payload = new
@@ -110,7 +114,7 @@ public class PatientIntegrationTest
             patientId,
             foodPlanId,
             reason = "Consulta inicial",
-            diagnostic = "DiagnÛstico preliminar",
+            diagnostic = "Diagnùstico preliminar",
             treatment = "Tratamiento recomendado"
         };
 
@@ -131,6 +135,7 @@ public class PatientIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task CreatePatient_ReturnsSuccessAndValidId()
     {
         var id = await CreatePatientAsync();
@@ -138,6 +143,7 @@ public class PatientIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetById_WhenExists_ReturnsPatient()
     {
         var id = await CreatePatientAsync();
@@ -163,6 +169,7 @@ public class PatientIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetById_WhenNotFound_ReturnsNotFoundAndError()
     {
         var response = await _client.GetAsync($"/api/Patients/GetById?PatientId={Guid.Empty}");
@@ -183,6 +190,7 @@ public class PatientIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task CreateContact_ReturnsSuccessAndValidId()
     {
         var patientId = await CreatePatientAsync();
@@ -192,6 +200,7 @@ public class PatientIntegrationTest
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task CreateHistory_ReturnsSuccessAndValidId()
     {
         var patientId = await CreatePatientAsync();

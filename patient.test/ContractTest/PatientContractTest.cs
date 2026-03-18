@@ -1,11 +1,9 @@
-﻿using patient.test.ContractTest.ContractDTOs;
+using patient.test.ContractTest.ContractDTOs;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
-using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace patient.test.ContractTest;
 
@@ -22,6 +20,7 @@ public class PatientContractTest
     }
 
     [Fact]
+    [Trait("Category", "Contract")]
     public async Task GetPatients_Should_Respect_Contract()
     {
         // Act
@@ -55,6 +54,7 @@ public class PatientContractTest
     }
 
     [Fact]
+    [Trait("Category", "Contract")]
     public async Task GetPatients_When_NotFound_Should_Respect_Error_Contract()
     {
         // Act
