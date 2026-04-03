@@ -18,8 +18,6 @@ name: Deploy SSH
 on:
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
@@ -80,16 +78,18 @@ jobs:
           source: deploy.tar.gz
           target: /tmp
 
-      - name: Construir imagen y ejecutar contenedor en el servidor
+      - name: Desplegar con Docker Compose usando imagenes de Docker Hub
         uses: appleboy/ssh-action@v1.2.0
         env:
-          IMAGE_TAG: ${{ github.sha }}
+          API_PATIENT_IMAGE: ${{ vars.API_PATIENT_IMAGE }}
+          PATIENT_WORKER_IMAGE: ${{ vars.PATIENT_WORKER_IMAGE }}
+          ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ env.DEPLOY_KEY }}
           port: 22
-          envs: IMAGE_TAG
+          envs: API_PATIENT_IMAGE,PATIENT_WORKER_IMAGE,ASPNETCORE_ENVIRONMENT
           command_timeout: 20m
           script: |
             set -euo pipefail
@@ -97,7 +97,8 @@ jobs:
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
             tar xzf /tmp/deploy.tar.gz
-            sudo docker build -t "api-patient:${IMAGE_TAG}" .
-            sudo docker stop api-patient 2>/dev/null || true
-            sudo docker rm api-patient 2>/dev/null || true
-            sudo docker run -d --restart unless-stopped --name api-patient -p 8080:8080 "api-patient:${IMAGE_TAG}"
+            export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-geonmagno/api_patient:0.2.3}"
+            export PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE:-geonmagno/patient_worker:0.2.3}"
+            export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
+            sudo docker compose -f docker-compose-dev.yml pull
+            sudo docker compose -f docker-compose-dev.yml up -d --remove-orphans
