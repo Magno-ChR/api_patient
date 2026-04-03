@@ -4,6 +4,14 @@
 #   magno_dev ALL=(ALL) NOPASSWD: /usr/bin/docker
 # El grupo `docker` solo existe después de instalar Docker; si no quieres usar sudo,
 # instala Docker y entonces: sudo groupadd docker 2>/dev/null; sudo usermod -aG docker magno_dev
+#
+# Secreto SSH_PRIVATE_KEY: debe ser la clave PRIVADA completa (varias líneas), por ejemplo:
+#   -----BEGIN OPENSSH PRIVATE KEY-----  o  -----BEGIN RSA PRIVATE KEY-----
+#   ...líneas base64...
+#   -----END ... PRIVATE KEY-----
+# NO pongas la línea "ssh-rsa AAAA..." (esa es la pública; va en ~/.ssh/authorized_keys del servidor).
+# En GitHub → Settings → Secrets → pega el archivo tal cual (con saltos de línea). Para CI suele usarse
+# una clave dedicada SIN frase de paso; si la clave tiene passphrase, añade el input `passphrase` en ambas actions.
 
 name: Deploy SSH
 
@@ -32,12 +40,42 @@ jobs:
           git archive --format=tar.gz --output=deploy.tar.gz HEAD \
             -- . ":(exclude)patient.test"
 
+      # Valida y normaliza la clave para evitar errores de parseo/autenticación.
+      - name: Preparar clave SSH para scp/ssh
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "::error::SSH_PRIVATE_KEY está vacío. Crea el secreto en el repositorio."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----BEGIN .+ PRIVATE KEY-----'; then
+            echo "::error::SSH_PRIVATE_KEY no parece una clave privada PEM/OpenSSH."
+            echo "No uses la línea que empieza por ssh-rsa / ssh-ed25519 (es la pública)."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----END .+ PRIVATE KEY-----'; then
+            echo "::error::Falta la línea -----END ... PRIVATE KEY----- (secreto truncado al pegar)."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-keygen -y -f /dev/stdin >/dev/null 2>&1; then
+            echo "::error::ssh-keygen no puede leer la clave (corrupta o con frase de paso)."
+            echo "Para CI usa una clave sin passphrase o configura passphrase en appleboy/scp-action y appleboy/ssh-action."
+            exit 1
+          fi
+          {
+            echo "DEPLOY_KEY<<EOF"
+            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r'
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Subir archivo al servidor
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ env.DEPLOY_KEY }}
           port: 22
           source: deploy.tar.gz
           target: /tmp
@@ -49,7 +87,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ env.DEPLOY_KEY }}
           port: 22
           envs: IMAGE_TAG
           command_timeout: 20m
