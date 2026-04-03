@@ -9,7 +9,9 @@ name: Deploy SSH
 
 on:
   push:
-    branches: [main]
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
