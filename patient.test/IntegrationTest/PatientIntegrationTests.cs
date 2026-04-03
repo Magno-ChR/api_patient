@@ -114,7 +114,7 @@ public class PatientIntegrationTest
             patientId,
             foodPlanId,
             reason = "Consulta inicial",
-            diagnostic = "Diagnstico preliminar",
+            diagnostic = "Diagnostico preliminar",
             treatment = "Tratamiento recomendado"
         };
 
@@ -134,7 +134,7 @@ public class PatientIntegrationTest
         return id;
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     [Trait("Category", "Integration")]
     public async Task CreatePatient_ReturnsSuccessAndValidId()
     {
@@ -142,7 +142,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, id);
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     [Trait("Category", "Integration")]
     public async Task GetById_WhenExists_ReturnsPatient()
     {
@@ -168,7 +168,7 @@ public class PatientIntegrationTest
         Assert.Equal(string.Empty, error.GetProperty("code").GetString());
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     [Trait("Category", "Integration")]
     public async Task GetById_WhenNotFound_ReturnsNotFoundAndError()
     {
@@ -189,7 +189,7 @@ public class PatientIntegrationTest
         Assert.True(error.GetProperty("type").GetInt32() > 0);
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     [Trait("Category", "Integration")]
     public async Task CreateContact_ReturnsSuccessAndValidId()
     {
@@ -199,7 +199,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, contactId);
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     [Trait("Category", "Integration")]
     public async Task CreateHistory_ReturnsSuccessAndValidId()
     {
@@ -210,7 +210,7 @@ public class PatientIntegrationTest
         Assert.NotEqual(Guid.Empty, historyId);
     }
 
-    [Fact(Skip = "Omitido en CI y ejecución por defecto mientras se corrige el entorno de integración.")]
+    [Fact(Skip = "Omitido en CI y ejecuciï¿½n por defecto mientras se corrige el entorno de integraciï¿½n.")]
     public async Task CompleteWorkflow_PatientContactHistory_Succeeds()
     {
         // 1. Create Patient
