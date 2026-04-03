@@ -28,7 +28,7 @@ namespace api_patient
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "API_PATIENT",
-                    Version = "v0.2.0"
+                    Version = "v1.0.0"
                 });
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
