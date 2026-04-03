@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using patient.application.Integration.FoodPlans;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace patient.infrastructure.Integration;
 
@@ -83,7 +84,19 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to start RabbitMQ FoodPlan consumer (attempt {Attempt})", attempt + 1);
+                if (ex is BrokerUnreachableException)
+                {
+                    _logger.LogWarning(
+                        "RabbitMQ is unreachable on {Host}:{Port} (attempt {Attempt}). Consumer will retry in {Delay}s.",
+                        _options.HostName,
+                        _options.Port,
+                        attempt + 1,
+                        _options.ReconnectDelaySeconds);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Failed to start RabbitMQ FoodPlan consumer (attempt {Attempt})", attempt + 1);
+                }
                 _channel?.Dispose();
                 _connection?.Dispose();
                 _channel = null;

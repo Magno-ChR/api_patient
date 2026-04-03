@@ -57,14 +57,11 @@ namespace api_patient
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            app.UseSwagger();
+            app.UseSwaggerUI(ModernStyle.Dark, x =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI(ModernStyle.Dark, x =>
-                {
-                    x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
-                });
-            }
+                x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+            });
 
             app.UseHttpsRedirection();
             app.ApplyMigrations();
