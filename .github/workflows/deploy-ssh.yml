@@ -40,13 +40,12 @@ jobs:
           git archive --format=tar.gz --output=deploy.tar.gz HEAD \
             -- . ":(exclude)patient.test"
 
-      # Normaliza CRLF y escribe en disco: evita "ssh: no key found" si el secreto tenía \r o formato raro.
+      # Valida y normaliza la clave para evitar errores de parseo/autenticación.
       - name: Preparar clave SSH para scp/ssh
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          KEY_FILE="${RUNNER_TEMP}/gha_deploy_key"
           if [ -z "${SSH_PRIVATE_KEY}" ]; then
             echo "::error::SSH_PRIVATE_KEY está vacío. Crea el secreto en el repositorio."
             exit 1
@@ -60,21 +59,23 @@ jobs:
             echo "::error::Falta la línea -----END ... PRIVATE KEY----- (secreto truncado al pegar)."
             exit 1
           fi
-          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$KEY_FILE"
-          chmod 600 "$KEY_FILE"
-          if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-keygen -y -f /dev/stdin >/dev/null 2>&1; then
             echo "::error::ssh-keygen no puede leer la clave (corrupta o con frase de paso)."
             echo "Para CI usa una clave sin passphrase o configura passphrase en appleboy/scp-action y appleboy/ssh-action."
             exit 1
           fi
-          echo "DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
+          {
+            echo "DEPLOY_KEY<<EOF"
+            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r'
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Subir archivo al servidor
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key_path: ${{ env.DEPLOY_KEY_FILE }}
+          key: ${{ env.DEPLOY_KEY }}
           port: 22
           source: deploy.tar.gz
           target: /tmp
@@ -86,7 +87,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key_path: ${{ env.DEPLOY_KEY_FILE }}
+          key: ${{ env.DEPLOY_KEY }}
           port: 22
           envs: IMAGE_TAG
           command_timeout: 20m
