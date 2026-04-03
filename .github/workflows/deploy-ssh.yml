@@ -78,18 +78,16 @@ jobs:
           source: deploy.tar.gz
           target: /tmp
 
-      - name: Desplegar con Docker Compose usando imagenes de Docker Hub
+      - name: Construir y desplegar API + Worker con Dockerfile
         uses: appleboy/ssh-action@v1.2.0
         env:
-          API_PATIENT_IMAGE: ${{ vars.API_PATIENT_IMAGE }}
-          PATIENT_WORKER_IMAGE: ${{ vars.PATIENT_WORKER_IMAGE }}
           ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ env.DEPLOY_KEY }}
           port: 22
-          envs: API_PATIENT_IMAGE,PATIENT_WORKER_IMAGE,ASPNETCORE_ENVIRONMENT
+          envs: ASPNETCORE_ENVIRONMENT
           command_timeout: 20m
           script: |
             set -euo pipefail
@@ -97,8 +95,81 @@ jobs:
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
             tar xzf /tmp/deploy.tar.gz
-            export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-geonmagno/api_patient:0.2.3}"
-            export PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE:-geonmagno/patient_worker:0.2.3}"
             export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
-            sudo docker compose -f docker-compose-dev.yml pull
-            sudo docker compose -f docker-compose-dev.yml up -d --remove-orphans
+            # Build images from repository Dockerfiles (API + Worker)
+            sudo docker build -f Dockerfile -t api-patient:latest .
+            sudo docker build -f patient.WorkerService/Dockerfile -t patient-worker:latest .
+
+            # Ensure shared network
+            sudo docker network create shared-network 2>/dev/null || true
+
+            # Recreate infrastructure containers
+            sudo docker rm -f patient-postgres-db rabbitmq api-patient patient-worker 2>/dev/null || true
+
+            sudo docker run -d \
+              --name patient-postgres-db \
+              --network shared-network \
+              --restart always \
+              -e POSTGRES_DB=patient_db \
+              -e POSTGRES_USER=patient \
+              -e POSTGRES_PASSWORD=patient \
+              -p 5022:5432 \
+              postgres:15
+
+            sudo docker run -d \
+              --name rabbitmq \
+              --network shared-network \
+              --restart unless-stopped \
+              -e RABBITMQ_DEFAULT_USER=admin \
+              -e RABBITMQ_DEFAULT_PASS=StrongPassword123 \
+              -p 5672:5672 \
+              -p 15672:15672 \
+              rabbitmq:3-management
+
+            # Wait for Postgres readiness to reduce startup noise on API/Worker
+            for i in $(seq 1 30); do
+              if sudo docker exec patient-postgres-db pg_isready -U patient -d patient_db >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+
+            # Run API
+            sudo docker run -d \
+              --name api-patient \
+              --network shared-network \
+              --restart unless-stopped \
+              -p 5002:5002 \
+              -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e DOTNET_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e ASPNETCORE_URLS="http://0.0.0.0:5002" \
+              -e ConnectionStrings__DefaultConnection="Host=patient-postgres-db;Port=5432;Database=patient_db;Username=patient;Password=patient;" \
+              -e RabbitMQ__HostName="rabbitmq" \
+              -e RabbitMQ__Port="5672" \
+              -e RabbitMQ__UserName="admin" \
+              -e RabbitMQ__Password="StrongPassword123" \
+              -e RabbitMQ__VirtualHost="/" \
+              -e RabbitMQ__FoodPlansQueue="ms-patients-queue" \
+              -e RabbitMQ__PatientsExchange="patients" \
+              -e RabbitMQ__ReconnectDelaySeconds="5" \
+              -e RabbitMQ__MaxReconnectAttempts="0" \
+              api-patient:latest
+
+            # Run Worker
+            sudo docker run -d \
+              --name patient-worker \
+              --network shared-network \
+              --restart unless-stopped \
+              -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e DOTNET_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e ConnectionStrings__DefaultConnection="Host=patient-postgres-db;Port=5432;Database=patient_db;Username=patient;Password=patient;" \
+              -e RabbitMQ__HostName="rabbitmq" \
+              -e RabbitMQ__Port="5672" \
+              -e RabbitMQ__UserName="admin" \
+              -e RabbitMQ__Password="StrongPassword123" \
+              -e RabbitMQ__VirtualHost="/" \
+              -e RabbitMQ__FoodPlansQueue="ms-patients-queue" \
+              -e RabbitMQ__PatientsExchange="patients" \
+              -e RabbitMQ__ReconnectDelaySeconds="5" \
+              -e RabbitMQ__MaxReconnectAttempts="0" \
+              patient-worker:latest
