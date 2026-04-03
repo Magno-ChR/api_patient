@@ -1,8 +1,7 @@
 # Etapa base para ejecución
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
+EXPOSE 5002
 
 # Etapa de compilación
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
