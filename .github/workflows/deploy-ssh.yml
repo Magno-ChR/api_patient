@@ -1,0 +1,67 @@
+# Despliegue continuo por SSH (patrón similar a pruebagitflow2026/.github/workflows/docker-image.yml).
+# Requiere en el servidor: Docker Engine instalado y que SSH_USER pueda ejecutar
+# `sudo docker` sin contraseña (NOPASSWD), p. ej. en /etc/sudoers.d/:
+#   magno_dev ALL=(ALL) NOPASSWD: /usr/bin/docker
+# El grupo `docker` solo existe después de instalar Docker; si no quieres usar sudo,
+# instala Docker y entonces: sudo groupadd docker 2>/dev/null; sudo usermod -aG docker magno_dev
+
+name: Deploy SSH
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ssh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Crear archivo de despliegue
+        run: |
+          tar czf deploy.tar.gz \
+            --exclude='./.git' \
+            --exclude='./patient.test' \
+            --exclude='./**/bin' \
+            --exclude='./**/obj' \
+            .
+
+      - name: Subir archivo al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: deploy.tar.gz
+          target: /tmp
+
+      - name: Construir imagen y ejecutar contenedor en el servidor
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          envs: IMAGE_TAG
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DEPLOY_DIR="${HOME}/api_patient"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+            tar xzf /tmp/deploy.tar.gz
+            sudo docker build -t "api-patient:${IMAGE_TAG}" .
+            sudo docker stop api-patient 2>/dev/null || true
+            sudo docker rm api-patient 2>/dev/null || true
+            sudo docker run -d --restart unless-stopped --name api-patient -p 8080:8080 "api-patient:${IMAGE_TAG}"
