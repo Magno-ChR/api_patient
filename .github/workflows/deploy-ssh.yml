@@ -96,9 +96,18 @@ jobs:
             cd "$DEPLOY_DIR"
             tar xzf /tmp/deploy.tar.gz
             export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
+            if [ ! -f "$DEPLOY_DIR/Dockerfile" ]; then
+              echo "ERROR: API Dockerfile no existe en $DEPLOY_DIR/Dockerfile"
+              exit 1
+            fi
+            if [ ! -f "$DEPLOY_DIR/patient.WorkerService/Dockerfile" ]; then
+              echo "ERROR: Worker Dockerfile no existe en $DEPLOY_DIR/patient.WorkerService/Dockerfile"
+              ls -la "$DEPLOY_DIR"
+              exit 1
+            fi
             # Build images from repository Dockerfiles (API + Worker)
-            sudo docker build -f Dockerfile -t api-patient:latest .
-            sudo docker build -f patient.WorkerService/Dockerfile -t patient-worker:latest .
+            sudo docker build -f "$DEPLOY_DIR/Dockerfile" -t api-patient:latest "$DEPLOY_DIR"
+            sudo docker build -f "$DEPLOY_DIR/patient.WorkerService/Dockerfile" -t patient-worker:latest "$DEPLOY_DIR"
 
             # Ensure shared network
             sudo docker network create shared-network 2>/dev/null || true
