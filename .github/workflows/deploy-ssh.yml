@@ -25,14 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # git archive evita "tar: .: file changed as we read it" (lectura del árbol en disco mientras cambia).
+      # bin/obj no se incluyen porque suelen estar en .gitignore.
       - name: Crear archivo de despliegue
         run: |
-          tar czf deploy.tar.gz \
-            --exclude='./.git' \
-            --exclude='./patient.test' \
-            --exclude='./**/bin' \
-            --exclude='./**/obj' \
-            .
+          git archive --format=tar.gz --output=deploy.tar.gz HEAD \
+            -- . ":(exclude)patient.test"
 
       - name: Subir archivo al servidor
         uses: appleboy/scp-action@v0.1.7
