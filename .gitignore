@@ -361,7 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-# Keep service Dockerfiles versioned for CI/CD deploys
+DockerfIle
 !Dockerfile
 !patient.WorkerService/Dockerfile
 /patient.test/CoverageHistory
