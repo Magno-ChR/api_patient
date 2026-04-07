@@ -1,0 +1,217 @@
+# Despliegue continuo por SSH (patrón similar a pruebagitflow2026/.github/workflows/docker-image.yml).
+# Requiere en el servidor: Docker Engine instalado y que SSH_USER pueda ejecutar
+# `sudo docker` sin contraseña (NOPASSWD), p. ej. en /etc/sudoers.d/:
+#   magno_dev ALL=(ALL) NOPASSWD: /usr/bin/docker
+# El grupo `docker` solo existe después de instalar Docker; si no quieres usar sudo,
+# instala Docker y entonces: sudo groupadd docker 2>/dev/null; sudo usermod -aG docker magno_dev
+#
+# Secreto SSH_PRIVATE_KEY: debe ser la clave PRIVADA completa (varias líneas), por ejemplo:
+#   -----BEGIN OPENSSH PRIVATE KEY-----  o  -----BEGIN RSA PRIVATE KEY-----
+#   ...líneas base64...
+#   -----END ... PRIVATE KEY-----
+# NO pongas la línea "ssh-rsa AAAA..." (esa es la pública; va en ~/.ssh/authorized_keys del servidor).
+# En GitHub → Settings → Secrets → pega el archivo tal cual (con saltos de línea). Para CI suele usarse
+# una clave dedicada SIN frase de paso; si la clave tiene passphrase, añade el input `passphrase` en ambas actions.
+
+name: Deploy SSH
+
+on:
+  push:
+    branches: [ "master" ]
+
+concurrency:
+  group: deploy-ssh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: >
+          dotnet test --no-build -c Release --verbosity normal patient.test
+          --filter "FullyQualifiedName!~IntegrationTest&FullyQualifiedName!~ContractTest"
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Crear archivo de despliegue
+        run: |
+          git archive --format=tar.gz --output=deploy.tar.gz HEAD \
+            -- . ":(exclude)patient.test"
+
+      - name: Preparar clave SSH para scp/ssh
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "::error::SSH_PRIVATE_KEY está vacío. Crea el secreto en el repositorio."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----BEGIN .+ PRIVATE KEY-----'; then
+            echo "::error::SSH_PRIVATE_KEY no parece una clave privada PEM/OpenSSH."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----END .+ PRIVATE KEY-----'; then
+            echo "::error::Falta la línea -----END ... PRIVATE KEY----- (secreto truncado al pegar)."
+            exit 1
+          fi
+          {
+            echo "DEPLOY_KEY<<EOF"
+            printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r'
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Subir archivo al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ env.DEPLOY_KEY }}
+          port: 22
+          source: deploy.tar.gz
+          target: /tmp
+
+      - name: Release via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ env.DEPLOY_KEY }}
+          port: 22
+          envs: ASPNETCORE_ENVIRONMENT
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DEPLOY_DIR="${HOME}/api_patient"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+            tar xzf /tmp/deploy.tar.gz
+            export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
+            if [ ! -f "$DEPLOY_DIR/Dockerfile" ]; then
+              echo "ERROR: API Dockerfile no existe en $DEPLOY_DIR/Dockerfile"
+              exit 1
+            fi
+            if [ ! -f "$DEPLOY_DIR/patient.WorkerService/Dockerfile" ]; then
+              echo "ERROR: Worker Dockerfile no existe en $DEPLOY_DIR/patient.WorkerService/Dockerfile"
+              ls -la "$DEPLOY_DIR"
+              exit 1
+            fi
+            # Build images from repository Dockerfiles (API + Worker)
+            sudo docker build -f "$DEPLOY_DIR/Dockerfile" -t api-patient:latest "$DEPLOY_DIR"
+            sudo docker build -f "$DEPLOY_DIR/patient.WorkerService/Dockerfile" -t patient-worker:latest "$DEPLOY_DIR"
+
+            # Ensure shared network
+            sudo docker network create shared-network 2>/dev/null || true
+
+            # Recreate infrastructure containers
+            sudo docker rm -f patient-postgres-db rabbitmq api-patient patient-worker 2>/dev/null || true
+
+            sudo docker run -d \
+              --name patient-postgres-db \
+              --network shared-network \
+              --restart always \
+              -e POSTGRES_DB=patient_db \
+              -e POSTGRES_USER=patient \
+              -e POSTGRES_PASSWORD=patient \
+              -p 5022:5432 \
+              postgres:15
+
+            sudo docker run -d \
+              --name rabbitmq \
+              --network shared-network \
+              --restart unless-stopped \
+              -e RABBITMQ_DEFAULT_USER=admin \
+              -e RABBITMQ_DEFAULT_PASS=StrongPassword123 \
+              -p 5672:5672 \
+              -p 15672:15672 \
+              rabbitmq:3-management
+
+            # Wait for Postgres readiness to reduce startup noise on API/Worker
+            for i in $(seq 1 30); do
+              if sudo docker exec patient-postgres-db pg_isready -U patient -d patient_db >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+
+            # Run API
+            sudo docker run -d \
+              --name api-patient \
+              --network shared-network \
+              --restart unless-stopped \
+              -p 5002:5002 \
+              -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e DOTNET_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e ASPNETCORE_URLS="http://0.0.0.0:5002" \
+              -e ConnectionStrings__DefaultConnection="Host=patient-postgres-db;Port=5432;Database=patient_db;Username=patient;Password=patient;" \
+              -e RabbitMQ__HostName="rabbitmq" \
+              -e RabbitMQ__Port="5672" \
+              -e RabbitMQ__UserName="admin" \
+              -e RabbitMQ__Password="StrongPassword123" \
+              -e RabbitMQ__VirtualHost="/" \
+              -e RabbitMQ__FoodPlansQueue="ms-patients-queue" \
+              -e RabbitMQ__PatientsExchange="patients" \
+              -e RabbitMQ__ReconnectDelaySeconds="5" \
+              -e RabbitMQ__MaxReconnectAttempts="0" \
+              api-patient:latest
+
+            # Run Worker
+            sudo docker run -d \
+              --name patient-worker \
+              --network shared-network \
+              --restart unless-stopped \
+              -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e DOTNET_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
+              -e ConnectionStrings__DefaultConnection="Host=patient-postgres-db;Port=5432;Database=patient_db;Username=patient;Password=patient;" \
+              -e RabbitMQ__HostName="rabbitmq" \
+              -e RabbitMQ__Port="5672" \
+              -e RabbitMQ__UserName="admin" \
+              -e RabbitMQ__Password="StrongPassword123" \
+              -e RabbitMQ__VirtualHost="/" \
+              -e RabbitMQ__FoodPlansQueue="ms-patients-queue" \
+              -e RabbitMQ__PatientsExchange="patients" \
+              -e RabbitMQ__ReconnectDelaySeconds="5" \
+              -e RabbitMQ__MaxReconnectAttempts="0" \
+              patient-worker:latest
+
+      - name: Monitoreo post-release (logs y healthcheck)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ env.DEPLOY_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== Docker status ==="
+            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo "=== API healthcheck ==="
+            curl -fsS "http://localhost:5002/swagger/index.html" >/dev/null
+            echo "Swagger reachable on localhost:5002"
+            echo "=== API logs (tail 80) ==="
+            sudo docker logs --tail 80 api-patient || true
+            echo "=== Worker logs (tail 80) ==="
+            sudo docker logs --tail 80 patient-worker || true
