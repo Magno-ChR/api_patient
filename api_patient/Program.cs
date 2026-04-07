@@ -28,7 +28,7 @@ namespace api_patient
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "API_PATIENT",
-                    Version = "v0.2.0"
+                    Version = "v1.0.0"
                 });
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
@@ -57,14 +57,11 @@ namespace api_patient
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            app.UseSwagger();
+            app.UseSwaggerUI(ModernStyle.Dark, x =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI(ModernStyle.Dark, x =>
-                {
-                    x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
-                });
-            }
+                x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+            });
 
             app.UseHttpsRedirection();
             app.ApplyMigrations();

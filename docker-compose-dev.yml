@@ -22,13 +22,27 @@ services:
     networks:
       - shared-network
 
+  # --- RabbitMQ ---------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: StrongPassword123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - shared-network
+
   # --- API Patient Microservice ----------------------------------------------
   api-patient:
-    image: geonmagno/api_patient:0.2.3
+    image: ${API_PATIENT_IMAGE:-geonmagno/api_patient:0.2.3}
     container_name: api-patient
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       # Escuchar en todas las interfaces para que el API Gateway y otros contenedores puedan conectar
       ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
@@ -49,16 +63,18 @@ services:
     depends_on:
       patient-postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - shared-network
 
   # --- Worker Patient (Outbox + RabbitMQ consumer) ---------------------------
   patient-worker:
-    image: geonmagno/patient_worker:0.2.3
+    image: ${PATIENT_WORKER_IMAGE:-geonmagno/patient_worker:0.2.3}
     container_name: patient-worker
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
@@ -72,6 +88,8 @@ services:
     depends_on:
       patient-postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - shared-network
 
@@ -80,6 +98,6 @@ networks:
   shared-network:
     driver: bridge
 
-# --- Vol�menes nombrados ----------------------------------------------------
+# --- Volumenes nombrados ------------------------------------------------------
 volumes:
   patient_postgres_data:
