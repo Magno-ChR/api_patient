@@ -18,27 +18,46 @@ name: Deploy SSH
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch:
 
 concurrency:
   group: deploy-ssh-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build_and_test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      # git archive evita "tar: .: file changed as we read it" (lectura del árbol en disco mientras cambia).
-      # bin/obj no se incluyen porque suelen estar en .gitignore.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: >
+          dotnet test --no-build -c Release --verbosity normal patient.test
+          --filter "FullyQualifiedName!~IntegrationTest&FullyQualifiedName!~ContractTest"
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Crear archivo de despliegue
         run: |
           git archive --format=tar.gz --output=deploy.tar.gz HEAD \
             -- . ":(exclude)patient.test"
 
-      # Valida y normaliza la clave para evitar errores de parseo/autenticación.
       - name: Preparar clave SSH para scp/ssh
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -50,16 +69,10 @@ jobs:
           fi
           if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----BEGIN .+ PRIVATE KEY-----'; then
             echo "::error::SSH_PRIVATE_KEY no parece una clave privada PEM/OpenSSH."
-            echo "No uses la línea que empieza por ssh-rsa / ssh-ed25519 (es la pública)."
             exit 1
           fi
           if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----END .+ PRIVATE KEY-----'; then
             echo "::error::Falta la línea -----END ... PRIVATE KEY----- (secreto truncado al pegar)."
-            exit 1
-          fi
-          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-keygen -y -f /dev/stdin >/dev/null 2>&1; then
-            echo "::error::ssh-keygen no puede leer la clave (corrupta o con frase de paso)."
-            echo "Para CI usa una clave sin passphrase o configura passphrase en appleboy/scp-action y appleboy/ssh-action."
             exit 1
           fi
           {
@@ -78,7 +91,7 @@ jobs:
           source: deploy.tar.gz
           target: /tmp
 
-      - name: Construir y desplegar API + Worker con Dockerfile
+      - name: Release via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
           ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
@@ -182,3 +195,23 @@ jobs:
               -e RabbitMQ__ReconnectDelaySeconds="5" \
               -e RabbitMQ__MaxReconnectAttempts="0" \
               patient-worker:latest
+
+      - name: Monitoreo post-release (logs y healthcheck)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ env.DEPLOY_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== Docker status ==="
+            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo "=== API healthcheck ==="
+            curl -fsS "http://localhost:5002/swagger/index.html" >/dev/null
+            echo "Swagger reachable on localhost:5002"
+            echo "=== API logs (tail 80) ==="
+            sudo docker logs --tail 80 api-patient || true
+            echo "=== Worker logs (tail 80) ==="
+            sudo docker logs --tail 80 patient-worker || true
