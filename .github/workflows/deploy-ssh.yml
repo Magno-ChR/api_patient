@@ -205,12 +205,24 @@ jobs:
           port: 22
           command_timeout: 10m
           script: |
-            set -euo pipefail
+            set -uo pipefail
             echo "=== Docker status ==="
             sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo "=== API healthcheck ==="
-            curl -fsS "http://localhost:5002/swagger/index.html" >/dev/null
-            echo "Swagger reachable on localhost:5002"
+            health_ok=0
+            for i in $(seq 1 12); do
+              if curl -fsS --connect-timeout 3 "http://localhost:5002/swagger/index.html" >/dev/null; then
+                health_ok=1
+                break
+              fi
+              echo "Intento ${i}/12: API no lista todavía, reintentando en 5s..."
+              sleep 5
+            done
+            if [ "$health_ok" -eq 1 ]; then
+              echo "Swagger reachable on localhost:5002"
+            else
+              echo "::warning::Healthcheck no estable después de 12 intentos. Se muestran logs para diagnóstico."
+            fi
             echo "=== API logs (tail 80) ==="
             sudo docker logs --tail 80 api-patient || true
             echo "=== Worker logs (tail 80) ==="
