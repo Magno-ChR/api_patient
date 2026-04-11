@@ -1,10 +1,13 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenTelemetry;
+using patient.infrastructure.Observability;
 using patient.application.Integration.FoodPlans;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -113,6 +116,16 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
         var isCreated = string.Equals(routingKey, _options.FoodPlanCreatedRoutingKey, StringComparison.Ordinal);
         var body = ea.Body.ToArray();
         var json = Encoding.UTF8.GetString(body);
+        var parentContext = PatientTelemetry.Propagator.Extract(default, ea.BasicProperties, ExtractTraceContextFromBasicProperties);
+        Baggage.Current = parentContext.Baggage;
+
+        using var activity = PatientTelemetry.ActivitySource.StartActivity(
+            "rabbitmq consume foodplan event",
+            ActivityKind.Consumer,
+            parentContext.ActivityContext);
+        activity?.SetTag("messaging.system", "rabbitmq");
+        activity?.SetTag("messaging.destination.name", _options.FoodPlansExchange);
+        activity?.SetTag("messaging.rabbitmq.routing_key", routingKey);
 
         try
         {
@@ -140,6 +153,19 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
             _logger.LogError(ex, "Error processing message. RoutingKey: {RoutingKey}, Body: {Body}", routingKey, json);
             Nack(ea, requeue: false);
         }
+    }
+
+    private static IEnumerable<string> ExtractTraceContextFromBasicProperties(IBasicProperties? properties, string key)
+    {
+        if (properties?.Headers is null || !properties.Headers.TryGetValue(key, out var value) || value is null)
+            return [];
+
+        return value switch
+        {
+            byte[] bytes => [Encoding.UTF8.GetString(bytes)],
+            string text => [text],
+            _ => [value.ToString() ?? string.Empty]
+        };
     }
 
     private void Ack(BasicDeliverEventArgs ea)
