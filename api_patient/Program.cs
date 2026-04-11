@@ -1,10 +1,20 @@
 using AspNetCore.Swagger.Themes;
 using api_patient.Middleware;
 using api_patient.Extensions;
+using api_patient.Observability;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using patient.infrastructure;
+using patient.infrastructure.Observability;
+using Prometheus;
+using Serilog;
+using System.Text.Json;
 
 namespace api_patient
 {
@@ -13,13 +23,39 @@ namespace api_patient
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? "api-patient";
 
             // Add services to the container.
 
+            builder.Logging.Configure(options =>
+            {
+                options.ActivityTrackingOptions =
+                    ActivityTrackingOptions.TraceId |
+                    ActivityTrackingOptions.SpanId |
+                    ActivityTrackingOptions.ParentId;
+            });
+            builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+            {
+                loggerConfiguration
+                    .ReadFrom.Configuration(context.Configuration)
+                    .ReadFrom.Services(services)
+                    .Enrich.FromLogContext();
+            });
             builder.Services.AddControllers();
             builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddRabbitMqFoodPlanConsumer(builder.Configuration);
+            builder.Services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService(serviceName))
+                .WithTracing(tracing => tracing
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddSource(PatientTelemetry.ActivitySourceName)
+                    .AddOtlpExporter());
+            builder.Services
+                .AddHealthChecks()
+                .AddCheck("self", () => HealthCheckResult.Healthy("API running"), tags: ["live"])
+                .AddCheck<DatabaseHealthCheck>("postgres", tags: ["ready"]);
             // Outbox: solo el Worker procesa la tabla outbox (OutboxBackgroundService + OutboxMessageHandler) y publica a RabbitMQ.
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -64,13 +100,47 @@ namespace api_patient
             });
 
             app.UseHttpsRedirection();
+            app.UseSerilogRequestLogging();
+            app.UseHttpMetrics();
             app.ApplyMigrations();
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.Logger.LogInformation("API Patient started with Serilog and OpenTelemetry");
+
+            app.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("live")
+            });
+            app.MapHealthChecks("/health/ready", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready"),
+                ResponseWriter = WriteHealthResponseAsync
+            });
+            app.MapMetrics("/metrics");
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+        {
+            context.Response.ContentType = "application/json";
+
+            var payload = new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.ToDictionary(
+                    entry => entry.Key,
+                    entry => new
+                    {
+                        status = entry.Value.Status.ToString(),
+                        description = entry.Value.Description,
+                        durationMs = entry.Value.Duration.TotalMilliseconds
+                    })
+            };
+
+            return context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
     }
 }

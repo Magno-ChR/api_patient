@@ -1,7 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
+using patient.infrastructure.Observability;
 using RabbitMQ.Client;
 
 namespace patient.infrastructure.Integration;
@@ -51,11 +55,20 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
 
             var json = JsonSerializer.Serialize(payload, JsonOptions);
             var body = Encoding.UTF8.GetBytes(json);
+            using var activity = PatientTelemetry.ActivitySource.StartActivity("rabbitmq publish patient event", ActivityKind.Producer);
+            activity?.SetTag("messaging.system", "rabbitmq");
+            activity?.SetTag("messaging.destination.name", _options.PatientsExchange);
+            activity?.SetTag("messaging.rabbitmq.routing_key", routingKey);
+            activity?.SetTag("patient.id", payload.PatientId);
+
+            var propagationContext = new PropagationContext(activity?.Context ?? Activity.Current?.Context ?? default, Baggage.Current);
+            var properties = channel.CreateBasicProperties();
+            PatientTelemetry.Propagator.Inject(propagationContext, properties, InjectTraceContextIntoBasicProperties);
 
             channel.BasicPublish(
                 exchange: _options.PatientsExchange,
                 routingKey: routingKey,
-                basicProperties: null,
+                basicProperties: properties,
                 body: body);
 
             _logger.LogInformation(
@@ -72,5 +85,11 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void InjectTraceContextIntoBasicProperties(IBasicProperties properties, string key, string value)
+    {
+        properties.Headers ??= new Dictionary<string, object>();
+        properties.Headers[key] = Encoding.UTF8.GetBytes(value);
     }
 }

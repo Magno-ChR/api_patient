@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Joseco.Outbox.EFCore" Version="1.0.4" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.3" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.15.2" />
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />

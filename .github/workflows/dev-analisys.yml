@@ -6,6 +6,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, review_requested]
   pull_request_review:
     types: [submitted]
+  push:
+    branches: [ "master", "develop" ]
 
 jobs:
   build:
@@ -86,3 +88,16 @@ jobs:
           name: coverage-report
           path: ./coverage/report
           retention-days: 7
+
+  compose_validation:
+    name: Compose validation and image build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker compose syntax
+        run: docker compose -f docker-compose-dev.yml config
+
+      - name: Build API and Worker images
+        run: docker compose -f docker-compose-dev.yml build api-patient patient-worker
