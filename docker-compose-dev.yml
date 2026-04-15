@@ -20,7 +20,7 @@ services:
       retries: 10
       start_period: 15s
     networks:
-      - shared-network
+      - nutricenter_net
 
   # --- API Patient Microservice ----------------------------------------------
   api-patient:
@@ -32,31 +32,28 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      # Escuchar en todas las interfaces para que el API Gateway y otros contenedores puedan conectar
       ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      # RabbitMQ (ms-infrastructure): colas/exchanges de https://github.com/JoseLCT/ms-infrastructure (definitions.json)
       RabbitMQ__HostName: ${RABBITMQ__HOSTNAME:-rabbitmq}
       RabbitMQ__Port: "${RABBITMQ__PORT:-5672}"
       RabbitMQ__UserName: ${RABBITMQ__USERNAME:-admin}
       RabbitMQ__Password: ${RABBITMQ__PASSWORD:-StrongPassword123}
       RabbitMQ__VirtualHost: /
-      # Cola de ms-infrastructure para el ms patient (meal-plan.* desde exchange meal-plans)
       RabbitMQ__FoodPlansQueue: ms-patients-queue
-      # Publicaci�n a exchange "patients" (patient.created / patient.updated)
       RabbitMQ__PatientsExchange: patients
       RabbitMQ__ReconnectDelaySeconds: 5
       RabbitMQ__MaxReconnectAttempts: 0
       OTEL_SERVICE_NAME: api-patient
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      SEQ_SERVER_URL: ${SEQ_SERVER_URL}
     ports:
       - "5002:5002"
     depends_on:
       patient-postgres:
         condition: service_healthy
     networks:
-      - shared-network
+      - nutricenter_net
 
   # --- Worker Patient (Outbox + RabbitMQ consumer) ---------------------------
   patient-worker:
@@ -79,129 +76,20 @@ services:
       RabbitMQ__ReconnectDelaySeconds: 5
       RabbitMQ__MaxReconnectAttempts: 0
       OTEL_SERVICE_NAME: patient-worker
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      SEQ_SERVER_URL: ${SEQ_SERVER_URL}
     depends_on:
       patient-postgres:
         condition: service_healthy
     networks:
-      - shared-network
+      - nutricenter_net
 
-  # --- Monitoring stack (OSS / free) ------------------------------------------
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: patient-prometheus
-    restart: unless-stopped
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      - api-patient
-      - node-exporter
-    networks:
-      - shared-network
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: patient-grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-      - loki
-      - tempo
-    networks:
-      - shared-network
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: patient-node-exporter
-    restart: unless-stopped
-    ports:
-      - "9100:9100"
-    networks:
-      - shared-network
-
-  # --- Observability stack (Tracing + Logs) -----------------------------------
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: patient-otel-collector
-    restart: unless-stopped
-    command: ["--config=/etc/otel-collector-config.yml"]
-    volumes:
-      - ./monitoring/otel-collector/config.yml:/etc/otel-collector-config.yml:ro
-    ports:
-      - "4317:4317"
-    depends_on:
-      - tempo
-      - loki
-    networks:
-      - shared-network
-
-  tempo:
-    image: grafana/tempo:2.4.1
-    container_name: patient-tempo
-    restart: unless-stopped
-    user: "0:0"
-    command: ["-config.file=/etc/tempo.yml"]
-    volumes:
-      - ./monitoring/tempo/tempo.yml:/etc/tempo.yml:ro
-      - tempo_data:/tmp/tempo
-    ports:
-      - "3200:3200"
-      - "4319:4317"
-      - "4320:4318"
-    networks:
-      - shared-network
-
-  loki:
-    image: grafana/loki:latest
-    container_name: patient-loki
-    restart: unless-stopped
-    command: ["-config.file=/etc/loki/local-config.yaml"]
-    volumes:
-      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
-    ports:
-      - "3100:3100"
-    networks:
-      - shared-network
-
-  promtail:
-    image: grafana/promtail:latest
-    container_name: patient-promtail
-    restart: unless-stopped
-    command: ["-config.file=/etc/promtail/config.yml"]
-    volumes:
-      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    depends_on:
-      - loki
-    networks:
-      - shared-network
-
-# --- Redes -------------------------------------------------------------------
+# Red externa: misma que en el servidor (compose proyecto "develop" + red nutricenter_net).
 networks:
-  shared-network:
-    driver: bridge
+  nutricenter_net:
+    external: true
+    name: develop_nutricenter_net
 
-# --- Volumenes nombrados ------------------------------------------------------
 volumes:
   patient_postgres_data:
-  prometheus_data:
-  grafana_data:
-  tempo_data:
-  loki_data:

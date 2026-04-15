@@ -368,3 +368,9 @@ DockerfIle
 /patient.test/coveragereport
 /patient.test/TestResults/b2d8c007-ed75-4b76-8e92-383517d985c1/coverage.cobertura.xml
 /patient.test/Coverage/coveragereport
+
+# Credenciales locales del stack de observabilidad (copiar desde observability.env.example)
+monitoring/observability.env
+
+# Variables para docker-compose-dev (copiar desde docker-compose.env.example)
+.env
