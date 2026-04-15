@@ -24,6 +24,10 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext();
+    var seqUrl = builder.Configuration["SEQ_SERVER_URL"]
+        ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL");
+    if (!string.IsNullOrWhiteSpace(seqUrl))
+        loggerConfiguration.WriteTo.Seq(seqUrl.Trim());
 });
 
 // Cargar appsettings de la API para que RabbitMQ (y ConnectionString/JWT) se configure en un solo lugar
@@ -39,12 +43,18 @@ builder.Configuration.AddJsonFile(
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRabbitMqFoodPlanConsumer(builder.Configuration);
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
+    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(serviceName))
-    .WithTracing(tracing => tracing
-        .AddHttpClientInstrumentation()
-        .AddSource(PatientTelemetry.ActivitySourceName)
-        .AddOtlpExporter());
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddHttpClientInstrumentation()
+            .AddSource(PatientTelemetry.ActivitySourceName);
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+            tracing.AddOtlpExporter();
+    });
 
 builder.Services.AddOutboxBackgroundService<DomainEvent>(5000);
 

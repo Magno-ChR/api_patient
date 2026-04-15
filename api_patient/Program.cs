@@ -40,18 +40,28 @@ namespace api_patient
                     .ReadFrom.Configuration(context.Configuration)
                     .ReadFrom.Services(services)
                     .Enrich.FromLogContext();
+                var seqUrl = context.Configuration["SEQ_SERVER_URL"]
+                    ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL");
+                if (!string.IsNullOrWhiteSpace(seqUrl))
+                    loggerConfiguration.WriteTo.Seq(seqUrl.Trim());
             });
             builder.Services.AddControllers();
             builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddRabbitMqFoodPlanConsumer(builder.Configuration);
+            var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
+                ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
             builder.Services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource.AddService(serviceName))
-                .WithTracing(tracing => tracing
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddSource(PatientTelemetry.ActivitySourceName)
-                    .AddOtlpExporter());
+                .WithTracing(tracing =>
+                {
+                    tracing
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddSource(PatientTelemetry.ActivitySourceName);
+                    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+                        tracing.AddOtlpExporter();
+                });
             builder.Services
                 .AddHealthChecks()
                 .AddCheck("self", () => HealthCheckResult.Healthy("API running"), tags: ["live"])

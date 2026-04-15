@@ -6,8 +6,6 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, review_requested]
   pull_request_review:
     types: [submitted]
-  push:
-    branches: [ "master", "develop" ]
 
 jobs:
   build:
@@ -97,7 +95,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate docker compose syntax
-        run: docker compose -f docker-compose-dev.yml config
+        run: |
+          sudo docker network create develop_nutricenter_net 2>/dev/null || true
+          sudo docker compose -f docker-compose-dev.yml config
+          sudo docker compose -f docker-compose.observability.yml config
 
       - name: Build API and Worker images
-        run: docker compose -f docker-compose-dev.yml build api-patient patient-worker
+        run: sudo docker compose -f docker-compose-dev.yml build api-patient patient-worker

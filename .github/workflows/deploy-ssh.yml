@@ -1,9 +1,6 @@
 # Despliegue continuo por SSH (patrón similar a pruebagitflow2026/.github/workflows/docker-image.yml).
-# Requiere en el servidor: Docker Engine instalado y que SSH_USER pueda ejecutar
-# `sudo docker` sin contraseña (NOPASSWD), p. ej. en /etc/sudoers.d/:
-#   magno_dev ALL=(ALL) NOPASSWD: /usr/bin/docker
-# El grupo `docker` solo existe después de instalar Docker; si no quieres usar sudo,
-# instala Docker y entonces: sudo groupadd docker 2>/dev/null; sudo usermod -aG docker magno_dev
+# Conexión SSH como root al servidor (username fijo abajo). Requiere Docker Engine y que la clave pública
+# del secreto SSH_PRIVATE_KEY esté en /root/.ssh/authorized_keys.
 #
 # Secreto SSH_PRIVATE_KEY: debe ser la clave PRIVADA completa (varias líneas), por ejemplo:
 #   -----BEGIN OPENSSH PRIVATE KEY-----  o  -----BEGIN RSA PRIVATE KEY-----
@@ -12,12 +9,19 @@
 # NO pongas la línea "ssh-rsa AAAA..." (esa es la pública; va en ~/.ssh/authorized_keys del servidor).
 # En GitHub → Settings → Secrets → pega el archivo tal cual (con saltos de línea). Para CI suele usarse
 # una clave dedicada SIN frase de paso; si la clave tiene passphrase, añade el input `passphrase` en ambas actions.
+#
+# Secretos: SSH_HOST, SSH_PRIVATE_KEY. La conexión es siempre como usuario root (no se usa SSH_USER).
+#
+# Variables del repo (opcionales): OTEL_EXPORTER_OTLP_ENDPOINT, SEQ_SERVER_URL — si no están definidas,
+# en el servidor se usan http://jaeger:4317 y http://seq:80 (misma red Docker develop_nutricenter_net).
+# RabbitMQ: RABBITMQ_HOSTNAME (p. ej. rabbitmq), RABBITMQ_* deben coincidir con tu broker.
 
 name: Deploy SSH
 
 on:
-  push:
-    branches: [ "master" ]
+  pull_request:
+    branches: [ "master"]
+    types: [closed]
 
 concurrency:
   group: deploy-ssh-${{ github.ref }}
@@ -25,6 +29,7 @@ concurrency:
 
 jobs:
   build_and_test:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -47,6 +52,7 @@ jobs:
           --filter "FullyQualifiedName!~IntegrationTest&FullyQualifiedName!~ContractTest"
 
   release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     needs: build_and_test
     steps:
@@ -85,7 +91,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: root
           key: ${{ env.DEPLOY_KEY }}
           port: 22
           source: deploy.tar.gz
@@ -101,19 +107,22 @@ jobs:
           RABBITMQ_PORT: ${{ vars.RABBITMQ_PORT }}
           RABBITMQ_USERNAME: ${{ vars.RABBITMQ_USERNAME }}
           RABBITMQ_PASSWORD: ${{ vars.RABBITMQ_PASSWORD }}
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          SEQ_SERVER_URL: ${{ vars.SEQ_SERVER_URL }}
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: root
           key: ${{ env.DEPLOY_KEY }}
           port: 22
-          envs: ASPNETCORE_ENVIRONMENT,API_PATIENT_IMAGE,PATIENT_WORKER_IMAGE,RABBITMQ_HOSTNAME,RABBITMQ_PORT,RABBITMQ_USERNAME,RABBITMQ_PASSWORD
+          envs: ASPNETCORE_ENVIRONMENT,API_PATIENT_IMAGE,PATIENT_WORKER_IMAGE,RABBITMQ_HOSTNAME,RABBITMQ_PORT,RABBITMQ_USERNAME,RABBITMQ_PASSWORD,OTEL_EXPORTER_OTLP_ENDPOINT,SEQ_SERVER_URL
           command_timeout: 20m
           script: |
             set -euo pipefail
-            DEPLOY_DIR="${HOME}/api_patient"
+            DEPLOY_DIR="/root/api_patient"
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
             tar xzf /tmp/deploy.tar.gz
+            docker network create develop_nutricenter_net 2>/dev/null || true
             export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
             export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-api-patient:dev}"
             export PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE:-patient-worker:dev}"
@@ -121,22 +130,24 @@ jobs:
             export RABBITMQ__PORT="${RABBITMQ_PORT:-5672}"
             export RABBITMQ__USERNAME="${RABBITMQ_USERNAME:-admin}"
             export RABBITMQ__PASSWORD="${RABBITMQ_PASSWORD:-StrongPassword123}"
+            export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}"
+            export SEQ_SERVER_URL="${SEQ_SERVER_URL:-http://seq:80}"
 
-            sudo docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" config >/dev/null
-            sudo docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" up -d --build --remove-orphans
+            docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" config >/dev/null
+            docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" up -d --build --remove-orphans
 
       - name: Monitoreo post-release (logs y healthcheck)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: root
           key: ${{ env.DEPLOY_KEY }}
           port: 22
           command_timeout: 10m
           script: |
             set -uo pipefail
             echo "=== Docker status ==="
-            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo "=== API healthcheck ==="
             health_ok=0
             for i in $(seq 1 12); do
@@ -153,6 +164,6 @@ jobs:
               echo "::warning::Healthcheck no estable después de 12 intentos. Se muestran logs para diagnóstico."
             fi
             echo "=== API logs (tail 80) ==="
-            sudo docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 api-patient || true
+            docker compose -f "/root/api_patient/docker-compose-dev.yml" logs --tail 80 api-patient || true
             echo "=== Worker logs (tail 80) ==="
-            sudo docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 patient-worker || true
+            docker compose -f "/root/api_patient/docker-compose-dev.yml" logs --tail 80 patient-worker || true

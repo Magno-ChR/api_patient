@@ -1,0 +1,257 @@
+# Stack completo sin bind mounts: RabbitMQ + observabilidad (Seq, Jaeger, Prometheus, Grafana, Node Exporter).
+# Configuración embebida vía `configs`. Variables en .env o en el shell (Compose las interpola).
+#
+# Red compartida con docker-compose-dev.yml; en el servidor es la ya creada por el stack develop:
+#   develop_nutricenter_net  (si no existe: docker network create develop_nutricenter_net)
+# Uso:
+#   docker compose -f docker-compose.observability.yml up -d
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-StrongPassword123}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    configs:
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+      - source: rabbitmq_definitions
+        target: /etc/rabbitmq/definitions.json
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nutricenter_net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${OTLP_GRPC_PORT:-4317}:4317"
+      - "${OTLP_HTTP_PORT:-4318}:4318"
+    networks:
+      - nutricenter_net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus_data:/prometheus
+    configs:
+      - source: prometheus_yml
+        target: /etc/prometheus/prometheus.yml
+    depends_on:
+      - jaeger
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - nutricenter_net
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - nutricenter_net
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "${SEQ_PORT:-5341}:80"
+    volumes:
+      - seq_data:/data
+    networks:
+      - nutricenter_net
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    networks:
+      - nutricenter_net
+
+configs:
+  rabbitmq_conf:
+    content: |
+      management.load_definitions = /etc/rabbitmq/definitions.json
+
+  rabbitmq_definitions:
+    content: |
+      {
+        "users": [
+          {
+            "name": "admin",
+            "password": "StrongPassword123",
+            "tags": "administrator"
+          }
+        ],
+        "permissions": [
+          {
+            "user": "admin",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+          }
+        ],
+        "vhosts": [{ "name": "/" }],
+        "exchanges": [
+          {
+            "name": "patients",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+          },
+          {
+            "name": "orders",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+          },
+          {
+            "name": "meal-plans",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+          },
+          {
+            "name": "calendar",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+          },
+          {
+            "name": "dead-letter-exchange",
+            "vhost": "/",
+            "type": "fanout",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+          }
+        ],
+        "queues": [
+          { "name": "ms-logistic-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "ms-kitchen-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "ms-meal-plans-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "ms-patients-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "ms-calendar-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "ms-security-queue", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "dead-letter-exchange" } },
+          { "name": "dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
+        ],
+        "bindings": [
+          { "source": "patients", "vhost": "/", "destination": "ms-logistic-queue", "destination_type": "queue", "routing_key": "patient.*", "arguments": {} },
+          { "source": "patients", "vhost": "/", "destination": "ms-kitchen-queue", "destination_type": "queue", "routing_key": "patient.*", "arguments": {} },
+          { "source": "patients", "vhost": "/", "destination": "ms-calendar-queue", "destination_type": "queue", "routing_key": "patient.*", "arguments": {} },
+          { "source": "patients", "vhost": "/", "destination": "ms-meal-plans-queue", "destination_type": "queue", "routing_key": "patient.*", "arguments": {} },
+          { "source": "patients", "vhost": "/", "destination": "ms-security-queue", "destination_type": "queue", "routing_key": "patient.*", "arguments": {} },
+          { "source": "orders", "vhost": "/", "destination": "ms-logistic-queue", "destination_type": "queue", "routing_key": "order.*", "arguments": {} },
+          { "source": "meal-plans", "vhost": "/", "destination": "ms-patients-queue", "destination_type": "queue", "routing_key": "meal-plan.*", "arguments": {} },
+          { "source": "meal-plans", "vhost": "/", "destination": "ms-kitchen-queue", "destination_type": "queue", "routing_key": "meal-plan.*", "arguments": {} },
+          { "source": "meal-plans", "vhost": "/", "destination": "ms-calendar-queue", "destination_type": "queue", "routing_key": "meal-plan.*", "arguments": {} },
+          { "source": "calendar", "vhost": "/", "destination": "ms-logistic-queue", "destination_type": "queue", "routing_key": "calendar.*", "arguments": {} },
+          { "source": "calendar", "vhost": "/", "destination": "ms-kitchen-queue", "destination_type": "queue", "routing_key": "calendar.*", "arguments": {} },
+          { "source": "dead-letter-exchange", "vhost": "/", "destination": "dlq", "destination_type": "queue", "routing_key": "", "arguments": {} }
+        ]
+      }
+
+  prometheus_yml:
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets: ["prometheus:9090"]
+
+        - job_name: api-patient
+          metrics_path: /metrics
+          static_configs:
+            - targets: ["api-patient:5002"]
+
+        - job_name: ms-logistic
+          static_configs:
+            - targets: ["host.docker.internal:5000"]
+
+        - job_name: ms-logistic-worker
+          static_configs:
+            - targets: ["host.docker.internal:5001"]
+
+        - job_name: node-exporter
+          static_configs:
+            - targets: ["node-exporter:9100"]
+
+  grafana_datasources:
+    content: |
+      apiVersion: 1
+
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus:9090
+          isDefault: true
+          editable: true
+
+        - name: Jaeger
+          type: jaeger
+          url: http://jaeger:16686
+          editable: true
+
+networks:
+  nutricenter_net:
+    external: true
+    name: develop_nutricenter_net
+
+volumes:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+  seq_data:
