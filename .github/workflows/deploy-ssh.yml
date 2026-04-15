@@ -19,8 +19,9 @@
 name: Deploy SSH
 
 on:
-  push:
-    branches: [ "master" ]
+  pull_request:
+    branches: [ "master", "develop" ]
+    types: [closed]
 
 concurrency:
   group: deploy-ssh-${{ github.ref }}
@@ -28,6 +29,7 @@ concurrency:
 
 jobs:
   build_and_test:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -50,6 +52,7 @@ jobs:
           --filter "FullyQualifiedName!~IntegrationTest&FullyQualifiedName!~ContractTest"
 
   release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     needs: build_and_test
     steps:

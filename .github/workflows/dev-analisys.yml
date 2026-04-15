@@ -6,8 +6,6 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, review_requested]
   pull_request_review:
     types: [submitted]
-  push:
-    branches: [ "master", "develop" ]
 
 jobs:
   build:
