@@ -136,7 +136,8 @@ jobs:
           DEPLOY_DIR="${HOME}/api_patient"
           mkdir -p "$DEPLOY_DIR"
           cd "$DEPLOY_DIR"
-          tar xzf /tmp/deploy.tar.gz
+          tar xzf "${HOME}/deploy.tar.gz"
+          rm -f "${HOME}/deploy.tar.gz"
           docker network create develop_nutricenter_net 2>/dev/null || true
           export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
           export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-api-patient:dev}"
