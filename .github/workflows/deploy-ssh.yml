@@ -20,7 +20,7 @@ name: Deploy SSH
 
 on:
   pull_request:
-    branches: [ "master", "develop" ]
+    branches: [ "master"]
     types: [closed]
 
 concurrency:
