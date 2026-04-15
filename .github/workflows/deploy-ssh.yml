@@ -1,6 +1,6 @@
 # Despliegue continuo por SSH (patrón similar a pruebagitflow2026/.github/workflows/docker-image.yml).
-# Conexión SSH como root al servidor (username fijo abajo). Requiere Docker Engine y que la clave pública
-# del secreto SSH_PRIVATE_KEY esté en /root/.ssh/authorized_keys.
+# Usuario SSH: secreto SSH_USER. Requiere Docker Engine en el servidor, acceso de ese usuario a Docker
+# (p. ej. grupo docker o rootless) y la clave pública de SSH_PRIVATE_KEY en ~/.ssh/authorized_keys del usuario.
 #
 # Secreto SSH_PRIVATE_KEY: debe ser la clave PRIVADA completa (varias líneas), por ejemplo:
 #   -----BEGIN OPENSSH PRIVATE KEY-----  o  -----BEGIN RSA PRIVATE KEY-----
@@ -10,7 +10,11 @@
 # En GitHub → Settings → Secrets → pega el archivo tal cual (con saltos de línea). Para CI suele usarse
 # una clave dedicada SIN frase de paso; si la clave tiene passphrase, añade el input `passphrase` en ambas actions.
 #
-# Secretos: SSH_HOST, SSH_PRIVATE_KEY. La conexión es siempre como usuario root (no se usa SSH_USER).
+# Secretos: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY.
+#
+# Si scp/ssh falla con "dial tcp …:22: i/o timeout", el runner no alcanza el servidor (red/firewall):
+# abre TCP 22 en el security group/ufw/iptables del VPS hacia internet, o permite los rangos "actions"
+# de https://api.github.com/meta (actualizar allowlist según documentación de GitHub).
 #
 # Variables del repo (opcionales): OTEL_EXPORTER_OTLP_ENDPOINT, SEQ_SERVER_URL — si no están definidas,
 # en el servidor se usan http://jaeger:4317 y http://seq:80 (misma red Docker develop_nutricenter_net).
@@ -67,8 +71,13 @@ jobs:
       - name: Preparar clave SSH para scp/ssh
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
+          if [ -z "${SSH_USER}" ]; then
+            echo "::error::SSH_USER está vacío. Crea el secreto en el repositorio."
+            exit 1
+          fi
           if [ -z "${SSH_PRIVATE_KEY}" ]; then
             echo "::error::SSH_PRIVATE_KEY está vacío. Crea el secreto en el repositorio."
             exit 1
@@ -91,7 +100,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: root
+          username: ${{ secrets.SSH_USER }}
           key: ${{ env.DEPLOY_KEY }}
           port: 22
           source: deploy.tar.gz
@@ -111,14 +120,14 @@ jobs:
           SEQ_SERVER_URL: ${{ vars.SEQ_SERVER_URL }}
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: root
+          username: ${{ secrets.SSH_USER }}
           key: ${{ env.DEPLOY_KEY }}
           port: 22
           envs: ASPNETCORE_ENVIRONMENT,API_PATIENT_IMAGE,PATIENT_WORKER_IMAGE,RABBITMQ_HOSTNAME,RABBITMQ_PORT,RABBITMQ_USERNAME,RABBITMQ_PASSWORD,OTEL_EXPORTER_OTLP_ENDPOINT,SEQ_SERVER_URL
           command_timeout: 20m
           script: |
             set -euo pipefail
-            DEPLOY_DIR="/root/api_patient"
+            DEPLOY_DIR="${HOME}/api_patient"
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
             tar xzf /tmp/deploy.tar.gz
@@ -140,7 +149,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: root
+          username: ${{ secrets.SSH_USER }}
           key: ${{ env.DEPLOY_KEY }}
           port: 22
           command_timeout: 10m
@@ -164,6 +173,6 @@ jobs:
               echo "::warning::Healthcheck no estable después de 12 intentos. Se muestran logs para diagnóstico."
             fi
             echo "=== API logs (tail 80) ==="
-            docker compose -f "/root/api_patient/docker-compose-dev.yml" logs --tail 80 api-patient || true
+            docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 api-patient || true
             echo "=== Worker logs (tail 80) ==="
-            docker compose -f "/root/api_patient/docker-compose-dev.yml" logs --tail 80 patient-worker || true
+            docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 patient-worker || true
