@@ -14,6 +14,7 @@ using patient.infrastructure;
 using patient.infrastructure.Observability;
 using Prometheus;
 using Serilog;
+using Serilog.Sinks.Grafana.Loki;
 using System.Text.Json;
 
 namespace api_patient
@@ -40,6 +41,10 @@ namespace api_patient
                     .ReadFrom.Configuration(context.Configuration)
                     .ReadFrom.Services(services)
                     .Enrich.FromLogContext();
+                var lokiUrl = context.Configuration["LOKI_URL"]
+                    ?? Environment.GetEnvironmentVariable("LOKI_URL");
+                if (!string.IsNullOrWhiteSpace(lokiUrl))
+                    loggerConfiguration.WriteTo.GrafanaLoki(lokiUrl.Trim());
                 var seqUrl = context.Configuration["SEQ_SERVER_URL"]
                     ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL");
                 if (!string.IsNullOrWhiteSpace(seqUrl))

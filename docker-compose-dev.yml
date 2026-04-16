@@ -46,6 +46,7 @@ services:
       OTEL_SERVICE_NAME: api-patient
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
       SEQ_SERVER_URL: ${SEQ_SERVER_URL}
     ports:
       - "5002:5002"
@@ -78,6 +79,7 @@ services:
       OTEL_SERVICE_NAME: patient-worker
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
       SEQ_SERVER_URL: ${SEQ_SERVER_URL}
     depends_on:
       patient-postgres:

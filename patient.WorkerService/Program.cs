@@ -7,6 +7,7 @@ using patient.domain.Abstractions;
 using patient.infrastructure;
 using patient.infrastructure.Observability;
 using Serilog;
+using Serilog.Sinks.Grafana.Loki;
 
 var builder = Host.CreateApplicationBuilder(args);
 var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? "patient-worker";
@@ -24,6 +25,10 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext();
+    var lokiUrl = builder.Configuration["LOKI_URL"]
+        ?? Environment.GetEnvironmentVariable("LOKI_URL");
+    if (!string.IsNullOrWhiteSpace(lokiUrl))
+        loggerConfiguration.WriteTo.GrafanaLoki(lokiUrl.Trim());
     var seqUrl = builder.Configuration["SEQ_SERVER_URL"]
         ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL");
     if (!string.IsNullOrWhiteSpace(seqUrl))
