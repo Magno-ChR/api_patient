@@ -34,19 +34,29 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      RabbitMQ__HostName: ${RABBITMQ__HOSTNAME:-rabbitmq}
+      RabbitMQ__HostName: ${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}
       RabbitMQ__Port: "${RABBITMQ__PORT:-5672}"
       RabbitMQ__UserName: ${RABBITMQ__USERNAME:-admin}
       RabbitMQ__Password: ${RABBITMQ__PASSWORD:-StrongPassword123}
-      RabbitMQ__VirtualHost: /
-      RabbitMQ__FoodPlansQueue: ms-patients-queue
-      RabbitMQ__PatientsExchange: patients
-      RabbitMQ__ReconnectDelaySeconds: 5
-      RabbitMQ__MaxReconnectAttempts: 0
+      RabbitMQ__VirtualHost: ${RABBITMQ__VIRTUALHOST:-/}
+      RabbitMQ__FoodPlansExchange: ${RABBITMQ__FOODPLANS_EXCHANGE:-meal-plans}
+      RabbitMQ__FoodPlansQueue: ${RABBITMQ__FOODPLANS_QUEUE:-ms-patients-queue}
+      RabbitMQ__FoodPlanCreatedRoutingKey: ${RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}
+      RabbitMQ__FoodPlanUpdatedRoutingKey: ${RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}
+      RabbitMQ__PatientsExchange: ${RABBITMQ__PATIENTS_EXCHANGE:-patients}
+      RabbitMQ__PatientCreatedRoutingKey: ${RABBITMQ__PATIENT_CREATED_ROUTING_KEY:-patient.created}
+      RabbitMQ__PatientUpdatedRoutingKey: ${RABBITMQ__PATIENT_UPDATED_ROUTING_KEY:-patient.updated}
+      RabbitMQ__ReconnectDelaySeconds: ${RABBITMQ__RECONNECT_DELAY_SECONDS:-5}
+      RabbitMQ__MaxReconnectAttempts: ${RABBITMQ__MAX_RECONNECT_ATTEMPTS:-0}
       OTEL_SERVICE_NAME: api-patient
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      Telemetry__OtlpEndpoint: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:4317
+      Serilog__Using__3: Serilog.Sinks.Grafana.Loki
+      Serilog__WriteTo__1__Name: GrafanaLoki
+      Serilog__WriteTo__1__Args__uri: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:3100
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
-      SEQ_SERVER_URL: ${SEQ_SERVER_URL}
+      LOKI_URL: ${LOKI_URL:-}
+      SEQ_SERVER_URL: ${SEQ_SERVER_URL:-}
     ports:
       - "5002:5002"
     depends_on:
@@ -66,19 +76,29 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      RabbitMQ__HostName: ${RABBITMQ__HOSTNAME:-rabbitmq}
+      RabbitMQ__HostName: ${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}
       RabbitMQ__Port: "${RABBITMQ__PORT:-5672}"
       RabbitMQ__UserName: ${RABBITMQ__USERNAME:-admin}
       RabbitMQ__Password: ${RABBITMQ__PASSWORD:-StrongPassword123}
-      RabbitMQ__VirtualHost: /
-      RabbitMQ__FoodPlansQueue: ms-patients-queue
-      RabbitMQ__PatientsExchange: patients
-      RabbitMQ__ReconnectDelaySeconds: 5
-      RabbitMQ__MaxReconnectAttempts: 0
+      RabbitMQ__VirtualHost: ${RABBITMQ__VIRTUALHOST:-/}
+      RabbitMQ__FoodPlansExchange: ${RABBITMQ__FOODPLANS_EXCHANGE:-meal-plans}
+      RabbitMQ__FoodPlansQueue: ${RABBITMQ__FOODPLANS_QUEUE:-ms-patients-queue}
+      RabbitMQ__FoodPlanCreatedRoutingKey: ${RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}
+      RabbitMQ__FoodPlanUpdatedRoutingKey: ${RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}
+      RabbitMQ__PatientsExchange: ${RABBITMQ__PATIENTS_EXCHANGE:-patients}
+      RabbitMQ__PatientCreatedRoutingKey: ${RABBITMQ__PATIENT_CREATED_ROUTING_KEY:-patient.created}
+      RabbitMQ__PatientUpdatedRoutingKey: ${RABBITMQ__PATIENT_UPDATED_ROUTING_KEY:-patient.updated}
+      RabbitMQ__ReconnectDelaySeconds: ${RABBITMQ__RECONNECT_DELAY_SECONDS:-5}
+      RabbitMQ__MaxReconnectAttempts: ${RABBITMQ__MAX_RECONNECT_ATTEMPTS:-0}
       OTEL_SERVICE_NAME: patient-worker
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      Telemetry__OtlpEndpoint: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:4317
+      Serilog__Using__3: Serilog.Sinks.Grafana.Loki
+      Serilog__WriteTo__1__Name: GrafanaLoki
+      Serilog__WriteTo__1__Args__uri: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:3100
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
-      SEQ_SERVER_URL: ${SEQ_SERVER_URL}
+      LOKI_URL: ${LOKI_URL:-}
+      SEQ_SERVER_URL: ${SEQ_SERVER_URL:-}
     depends_on:
       patient-postgres:
         condition: service_healthy

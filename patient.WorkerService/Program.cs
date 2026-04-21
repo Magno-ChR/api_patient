@@ -7,6 +7,7 @@ using patient.domain.Abstractions;
 using patient.infrastructure;
 using patient.infrastructure.Observability;
 using Serilog;
+using Serilog.Sinks.Grafana.Loki;
 
 var builder = Host.CreateApplicationBuilder(args);
 var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? "patient-worker";
@@ -24,6 +25,10 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext();
+    var lokiUrl = builder.Configuration["LOKI_URL"]
+        ?? Environment.GetEnvironmentVariable("LOKI_URL");
+    if (!string.IsNullOrWhiteSpace(lokiUrl))
+        loggerConfiguration.WriteTo.GrafanaLoki(lokiUrl.Trim());
     var seqUrl = builder.Configuration["SEQ_SERVER_URL"]
         ?? Environment.GetEnvironmentVariable("SEQ_SERVER_URL");
     if (!string.IsNullOrWhiteSpace(seqUrl))
@@ -44,7 +49,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRabbitMqFoodPlanConsumer(builder.Configuration);
 var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+    ?? builder.Configuration["Telemetry:OtlpEndpoint"];
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(serviceName))
     .WithTracing(tracing =>
