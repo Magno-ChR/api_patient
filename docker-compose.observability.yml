@@ -1,4 +1,4 @@
-# Stack completo sin bind mounts: RabbitMQ + observabilidad (Seq, Jaeger, Prometheus, Grafana, Node Exporter).
+# Stack completo sin bind mounts: RabbitMQ + observabilidad (Seq, Loki, Jaeger, Prometheus, Grafana, Node Exporter).
 # Configuración embebida vía `configs`. Variables en .env o en el shell (Compose las interpola).
 #
 # Red compartida con docker-compose-dev.yml; en el servidor es la ya creada por el stack develop:
@@ -82,8 +82,21 @@ services:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
     depends_on:
+      - loki
       - prometheus
       - jaeger
+    networks:
+      - nutricenter_net
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki_data:/loki
     networks:
       - nutricenter_net
 
@@ -246,6 +259,11 @@ configs:
           url: http://jaeger:16686
           editable: true
 
+        - name: Loki
+          type: loki
+          url: http://loki:3100
+          editable: true
+
 networks:
   nutricenter_net:
     external: true
@@ -255,4 +273,5 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
+  loki_data:
   seq_data:
