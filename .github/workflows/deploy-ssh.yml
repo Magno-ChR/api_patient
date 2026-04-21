@@ -16,9 +16,12 @@
 # abre TCP 22 en el security group/ufw/iptables del VPS hacia internet, o permite los rangos "actions"
 # de https://api.github.com/meta (actualizar allowlist según documentación de GitHub).
 #
-# Variables del repo (opcionales): OTEL_EXPORTER_OTLP_ENDPOINT, SEQ_SERVER_URL — si no están definidas,
-# en el servidor se usan http://jaeger:4317 y http://seq:80 (misma red Docker develop_nutricenter_net).
-# RabbitMQ: RABBITMQ_HOSTNAME (p. ej. rabbitmq), RABBITMQ_* deben coincidir con tu broker.
+# Variables del repo:
+# - INFRA_HOST: host/IP compartido de infra (mismo patrón que ms-logistic). docker-compose-dev.yml lo usa
+#   para RabbitMQ, OTLP (:4317) y Loki (:3100) vía Telemetry__OtlpEndpoint + Serilog__WriteTo__1__*.
+# - Opcionales: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL, LOKI_URL y SEQ_SERVER_URL
+#   para sobrescribir o complementar lo anterior.
+# RabbitMQ: credenciales y topología vía RABBITMQ_*; el host AMQP por defecto sigue INFRA_HOST.
 
 name: Deploy SSH
 
@@ -113,11 +116,24 @@ jobs:
           ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
           API_PATIENT_IMAGE: ${{ vars.API_PATIENT_IMAGE }}
           PATIENT_WORKER_IMAGE: ${{ vars.PATIENT_WORKER_IMAGE }}
+          INFRA_HOST: ${{ vars.INFRA_HOST }}
           RABBITMQ_HOSTNAME: ${{ vars.RABBITMQ_HOSTNAME }}
           RABBITMQ_PORT: ${{ vars.RABBITMQ_PORT }}
           RABBITMQ_USERNAME: ${{ vars.RABBITMQ_USERNAME }}
           RABBITMQ_PASSWORD: ${{ vars.RABBITMQ_PASSWORD }}
+          RABBITMQ_VIRTUALHOST: ${{ vars.RABBITMQ_VIRTUALHOST }}
+          RABBITMQ_FOODPLANS_EXCHANGE: ${{ vars.RABBITMQ_FOODPLANS_EXCHANGE }}
+          RABBITMQ_FOODPLANS_QUEUE: ${{ vars.RABBITMQ_FOODPLANS_QUEUE }}
+          RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY: ${{ vars.RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY }}
+          RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY: ${{ vars.RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY }}
+          RABBITMQ_PATIENTS_EXCHANGE: ${{ vars.RABBITMQ_PATIENTS_EXCHANGE }}
+          RABBITMQ_PATIENT_CREATED_ROUTING_KEY: ${{ vars.RABBITMQ_PATIENT_CREATED_ROUTING_KEY }}
+          RABBITMQ_PATIENT_UPDATED_ROUTING_KEY: ${{ vars.RABBITMQ_PATIENT_UPDATED_ROUTING_KEY }}
+          RABBITMQ_RECONNECT_DELAY_SECONDS: ${{ vars.RABBITMQ_RECONNECT_DELAY_SECONDS }}
+          RABBITMQ_MAX_RECONNECT_ATTEMPTS: ${{ vars.RABBITMQ_MAX_RECONNECT_ATTEMPTS }}
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_PROTOCOL: ${{ vars.OTEL_EXPORTER_OTLP_PROTOCOL }}
+          LOKI_URL: ${{ vars.LOKI_URL }}
           SEQ_SERVER_URL: ${{ vars.SEQ_SERVER_URL }}
         run: |
           set -euo pipefail
@@ -125,11 +141,24 @@ jobs:
             ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
             API_PATIENT_IMAGE="${API_PATIENT_IMAGE}" \
             PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE}" \
+            INFRA_HOST="${INFRA_HOST}" \
             RABBITMQ_HOSTNAME="${RABBITMQ_HOSTNAME}" \
             RABBITMQ_PORT="${RABBITMQ_PORT}" \
             RABBITMQ_USERNAME="${RABBITMQ_USERNAME}" \
             RABBITMQ_PASSWORD="${RABBITMQ_PASSWORD}" \
+            RABBITMQ_VIRTUALHOST="${RABBITMQ_VIRTUALHOST}" \
+            RABBITMQ_FOODPLANS_EXCHANGE="${RABBITMQ_FOODPLANS_EXCHANGE}" \
+            RABBITMQ_FOODPLANS_QUEUE="${RABBITMQ_FOODPLANS_QUEUE}" \
+            RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY}" \
+            RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY}" \
+            RABBITMQ_PATIENTS_EXCHANGE="${RABBITMQ_PATIENTS_EXCHANGE}" \
+            RABBITMQ_PATIENT_CREATED_ROUTING_KEY="${RABBITMQ_PATIENT_CREATED_ROUTING_KEY}" \
+            RABBITMQ_PATIENT_UPDATED_ROUTING_KEY="${RABBITMQ_PATIENT_UPDATED_ROUTING_KEY}" \
+            RABBITMQ_RECONNECT_DELAY_SECONDS="${RABBITMQ_RECONNECT_DELAY_SECONDS}" \
+            RABBITMQ_MAX_RECONNECT_ATTEMPTS="${RABBITMQ_MAX_RECONNECT_ATTEMPTS}" \
             OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
+            OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL}" \
+            LOKI_URL="${LOKI_URL}" \
             SEQ_SERVER_URL="${SEQ_SERVER_URL}" \
             'bash -se' <<'EOF'
           set -euo pipefail
@@ -142,12 +171,25 @@ jobs:
           export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
           export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-api-patient:dev}"
           export PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE:-patient-worker:dev}"
-          export RABBITMQ__HOSTNAME="${RABBITMQ_HOSTNAME:-rabbitmq}"
+          export INFRA_HOST="${INFRA_HOST:-${RABBITMQ_HOSTNAME:-rabbitmq}}"
+          export RABBITMQ__HOSTNAME="${RABBITMQ_HOSTNAME:-${INFRA_HOST}}"
           export RABBITMQ__PORT="${RABBITMQ_PORT:-5672}"
           export RABBITMQ__USERNAME="${RABBITMQ_USERNAME:-admin}"
           export RABBITMQ__PASSWORD="${RABBITMQ_PASSWORD:-StrongPassword123}"
-          export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}"
-          export SEQ_SERVER_URL="${SEQ_SERVER_URL:-http://seq:80}"
+          export RABBITMQ__VIRTUALHOST="${RABBITMQ_VIRTUALHOST:-/}"
+          export RABBITMQ__FOODPLANS_EXCHANGE="${RABBITMQ_FOODPLANS_EXCHANGE:-meal-plans}"
+          export RABBITMQ__FOODPLANS_QUEUE="${RABBITMQ_FOODPLANS_QUEUE:-ms-patients-queue}"
+          export RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}"
+          export RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}"
+          export RABBITMQ__PATIENTS_EXCHANGE="${RABBITMQ_PATIENTS_EXCHANGE:-patients}"
+          export RABBITMQ__PATIENT_CREATED_ROUTING_KEY="${RABBITMQ_PATIENT_CREATED_ROUTING_KEY:-patient.created}"
+          export RABBITMQ__PATIENT_UPDATED_ROUTING_KEY="${RABBITMQ_PATIENT_UPDATED_ROUTING_KEY:-patient.updated}"
+          export RABBITMQ__RECONNECT_DELAY_SECONDS="${RABBITMQ_RECONNECT_DELAY_SECONDS:-5}"
+          export RABBITMQ__MAX_RECONNECT_ATTEMPTS="${RABBITMQ_MAX_RECONNECT_ATTEMPTS:-0}"
+          export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+          export OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}"
+          export LOKI_URL="${LOKI_URL:-}"
+          export SEQ_SERVER_URL="${SEQ_SERVER_URL:-}"
 
           docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" config >/dev/null
           docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" up -d --build --remove-orphans
