@@ -372,5 +372,5 @@ DockerfIle
 # Credenciales locales del stack de observabilidad (copiar desde observability.env.example)
 monitoring/observability.env
 
-# Variables para docker-compose-dev (copiar desde docker-compose.env.example)
+# Ignorar .env accidental en la raíz (docker-compose-dev.yml no usa env_file; ver README).
 .env
