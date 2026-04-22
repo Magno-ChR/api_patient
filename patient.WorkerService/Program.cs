@@ -1,4 +1,5 @@
 using Joseco.Outbox.EFCore;
+using Microsoft.Extensions.Configuration;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -20,6 +21,18 @@ builder.Logging.Configure(options =>
 		ActivityTrackingOptions.ParentId;
 });
 
+// appsettings de api_patient (p. ej. Rabbit) se cargan antes que variables de entorno del contenedor,
+// para que Loki__Uri / Telemetry__OtlpEndpoint de Docker no queden anulados por "Loki:Uri": "" en JSON.
+builder.Configuration.AddJsonFile(
+	Path.Combine(builder.Environment.ContentRootPath, "..", "api_patient", "appsettings.json"),
+	optional: true,
+	reloadOnChange: false);
+builder.Configuration.AddJsonFile(
+	Path.Combine(builder.Environment.ContentRootPath, "..", "api_patient", $"appsettings.{builder.Environment.EnvironmentName}.json"),
+	optional: true,
+	reloadOnChange: false);
+builder.Configuration.AddEnvironmentVariables();
+
 builder.Services.AddSerilog((services, loggerConfiguration) =>
 {
 	loggerConfiguration
@@ -31,17 +44,12 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
 	if (!string.IsNullOrWhiteSpace(lokiUri) &&
 	    Uri.TryCreate(lokiUri.Trim(), UriKind.Absolute, out var loki) &&
 	    (loki.Scheme == Uri.UriSchemeHttp || loki.Scheme == Uri.UriSchemeHttps))
-		loggerConfiguration.WriteTo.GrafanaLoki(lokiUri.Trim());
+	{
+		loggerConfiguration.WriteTo.GrafanaLoki(
+			lokiUri.Trim(),
+			[new LokiLabel { Key = "service_name", Value = serviceName }]);
+	}
 });
-
-builder.Configuration.AddJsonFile(
-	Path.Combine(builder.Environment.ContentRootPath, "..", "api_patient", "appsettings.json"),
-	optional: true,
-	reloadOnChange: false);
-builder.Configuration.AddJsonFile(
-	Path.Combine(builder.Environment.ContentRootPath, "..", "api_patient", $"appsettings.{builder.Environment.EnvironmentName}.json"),
-	optional: true,
-	reloadOnChange: false);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
