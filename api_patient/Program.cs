@@ -46,7 +46,11 @@ namespace api_patient
 				if (!string.IsNullOrWhiteSpace(lokiUri) &&
 				    Uri.TryCreate(lokiUri.Trim(), UriKind.Absolute, out var loki) &&
 				    (loki.Scheme == Uri.UriSchemeHttp || loki.Scheme == Uri.UriSchemeHttps))
-					loggerConfiguration.WriteTo.GrafanaLoki(lokiUri.Trim());
+				{
+					loggerConfiguration.WriteTo.GrafanaLoki(
+						lokiUri.Trim(),
+						[new LokiLabel { Key = "service_name", Value = serviceName }]);
+				}
 			});
 
 			builder.Services.AddControllers();
