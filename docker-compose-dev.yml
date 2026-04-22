@@ -27,36 +27,36 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${API_PATIENT_IMAGE:-api-patient:dev}
+    image: api-patient:latest
     container_name: api-patient
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://0.0.0.0:5002"
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      RabbitMQ__HostName: ${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}
-      RabbitMQ__Port: "${RABBITMQ__PORT:-5672}"
-      RabbitMQ__UserName: ${RABBITMQ__USERNAME:-admin}
-      RabbitMQ__Password: ${RABBITMQ__PASSWORD:-StrongPassword123}
-      RabbitMQ__VirtualHost: ${RABBITMQ__VIRTUALHOST:-/}
-      RabbitMQ__FoodPlansExchange: ${RABBITMQ__FOODPLANS_EXCHANGE:-meal-plans}
-      RabbitMQ__FoodPlansQueue: ${RABBITMQ__FOODPLANS_QUEUE:-ms-patients-queue}
-      RabbitMQ__FoodPlanCreatedRoutingKey: ${RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}
-      RabbitMQ__FoodPlanUpdatedRoutingKey: ${RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}
-      RabbitMQ__PatientsExchange: ${RABBITMQ__PATIENTS_EXCHANGE:-patients}
-      RabbitMQ__PatientCreatedRoutingKey: ${RABBITMQ__PATIENT_CREATED_ROUTING_KEY:-patient.created}
-      RabbitMQ__PatientUpdatedRoutingKey: ${RABBITMQ__PATIENT_UPDATED_ROUTING_KEY:-patient.updated}
-      RabbitMQ__ReconnectDelaySeconds: ${RABBITMQ__RECONNECT_DELAY_SECONDS:-5}
-      RabbitMQ__MaxReconnectAttempts: ${RABBITMQ__MAX_RECONNECT_ATTEMPTS:-0}
+      RabbitMQ__HostName: ${INFRA_HOST:?INFRA_HOST is required}
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: admin
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__FoodPlansExchange: meal-plans
+      RabbitMQ__FoodPlansQueue: ms-patients-queue
+      RabbitMQ__FoodPlanCreatedRoutingKey: meal-plan.created
+      RabbitMQ__FoodPlanUpdatedRoutingKey: meal-plan.updated
+      RabbitMQ__PatientsExchange: patients
+      RabbitMQ__PatientCreatedRoutingKey: patient.created
+      RabbitMQ__PatientUpdatedRoutingKey: patient.updated
+      RabbitMQ__ReconnectDelaySeconds: "5"
+      RabbitMQ__MaxReconnectAttempts: "0"
       OTEL_SERVICE_NAME: api-patient
-      Telemetry__OtlpEndpoint: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:4317
-      Serilog__Using__3: Serilog.Sinks.Grafana.Loki
-      Serilog__WriteTo__1__Name: GrafanaLoki
-      Serilog__WriteTo__1__Args__uri: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:3100
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
-      LOKI_URL: ${LOKI_URL:-}
-      SEQ_SERVER_URL: ${SEQ_SERVER_URL:-}
+      Telemetry__OtlpEndpoint: http://${INFRA_HOST:?INFRA_HOST is required}:4317
+      Loki__Uri: http://${INFRA_HOST:?INFRA_HOST is required}:3100
+      Consul__Host: http://${INFRA_HOST:?INFRA_HOST is required}:8500
+      Consul__ServiceName: api-patient
+      # Dirección que Consul usará para el HTTP check. Si Consul corre en otro servidor que esta API,
+      # cambia "api-patient" por la IP/DNS del host donde publicas el puerto 5002 (alcanzable desde Consul).
+      Consul__ServiceAddress: api-patient
+      Consul__ServicePort: "5002"
     ports:
       - "5002:5002"
     depends_on:
@@ -70,42 +70,35 @@ services:
     build:
       context: .
       dockerfile: patient.WorkerService/Dockerfile
-    image: ${PATIENT_WORKER_IMAGE:-patient-worker:dev}
+    image: patient-worker:latest
     container_name: patient-worker
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=patient-postgres;Port=5432;Database=patient_db;Username=patient;Password=patient;"
-      RabbitMQ__HostName: ${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}
-      RabbitMQ__Port: "${RABBITMQ__PORT:-5672}"
-      RabbitMQ__UserName: ${RABBITMQ__USERNAME:-admin}
-      RabbitMQ__Password: ${RABBITMQ__PASSWORD:-StrongPassword123}
-      RabbitMQ__VirtualHost: ${RABBITMQ__VIRTUALHOST:-/}
-      RabbitMQ__FoodPlansExchange: ${RABBITMQ__FOODPLANS_EXCHANGE:-meal-plans}
-      RabbitMQ__FoodPlansQueue: ${RABBITMQ__FOODPLANS_QUEUE:-ms-patients-queue}
-      RabbitMQ__FoodPlanCreatedRoutingKey: ${RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}
-      RabbitMQ__FoodPlanUpdatedRoutingKey: ${RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}
-      RabbitMQ__PatientsExchange: ${RABBITMQ__PATIENTS_EXCHANGE:-patients}
-      RabbitMQ__PatientCreatedRoutingKey: ${RABBITMQ__PATIENT_CREATED_ROUTING_KEY:-patient.created}
-      RabbitMQ__PatientUpdatedRoutingKey: ${RABBITMQ__PATIENT_UPDATED_ROUTING_KEY:-patient.updated}
-      RabbitMQ__ReconnectDelaySeconds: ${RABBITMQ__RECONNECT_DELAY_SECONDS:-5}
-      RabbitMQ__MaxReconnectAttempts: ${RABBITMQ__MAX_RECONNECT_ATTEMPTS:-0}
+      RabbitMQ__HostName: ${INFRA_HOST:?INFRA_HOST is required}
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: admin
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__FoodPlansExchange: meal-plans
+      RabbitMQ__FoodPlansQueue: ms-patients-queue
+      RabbitMQ__FoodPlanCreatedRoutingKey: meal-plan.created
+      RabbitMQ__FoodPlanUpdatedRoutingKey: meal-plan.updated
+      RabbitMQ__PatientsExchange: patients
+      RabbitMQ__PatientCreatedRoutingKey: patient.created
+      RabbitMQ__PatientUpdatedRoutingKey: patient.updated
+      RabbitMQ__ReconnectDelaySeconds: "5"
+      RabbitMQ__MaxReconnectAttempts: "0"
       OTEL_SERVICE_NAME: patient-worker
-      Telemetry__OtlpEndpoint: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:4317
-      Serilog__Using__3: Serilog.Sinks.Grafana.Loki
-      Serilog__WriteTo__1__Name: GrafanaLoki
-      Serilog__WriteTo__1__Args__uri: http://${INFRA_HOST:-${RABBITMQ__HOSTNAME:-rabbitmq}}:3100
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
-      LOKI_URL: ${LOKI_URL:-}
-      SEQ_SERVER_URL: ${SEQ_SERVER_URL:-}
+      Telemetry__OtlpEndpoint: http://${INFRA_HOST:?INFRA_HOST is required}:4317
+      Loki__Uri: http://${INFRA_HOST:?INFRA_HOST is required}:3100
     depends_on:
       patient-postgres:
         condition: service_healthy
     networks:
       - nutricenter_net
 
-# Red externa: misma que en el servidor (compose proyecto "develop" + red nutricenter_net).
 networks:
   nutricenter_net:
     external: true

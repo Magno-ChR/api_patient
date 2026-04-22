@@ -43,12 +43,6 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
         {
             try
             {
-                if (_options.MaxReconnectAttempts > 0 && attempt >= _options.MaxReconnectAttempts)
-                {
-                    _logger.LogError("Max RabbitMQ reconnect attempts ({Max}) reached. Stopping consumer.", _options.MaxReconnectAttempts);
-                    return;
-                }
-
                 if (attempt > 0)
                     _logger.LogInformation("RabbitMQ reconnect attempt {Attempt}…", attempt + 1);
 
@@ -98,7 +92,12 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
                 }
                 else
                 {
-                    _logger.LogError(ex, "Failed to start RabbitMQ FoodPlan consumer (attempt {Attempt})", attempt + 1);
+                    _logger.LogError(
+                        ex,
+                        "Failed to start RabbitMQ FoodPlan consumer on {Host}:{Port} (attempt {Attempt})",
+                        _options.HostName,
+                        _options.Port,
+                        attempt + 1);
                 }
                 _channel?.Dispose();
                 _connection?.Dispose();

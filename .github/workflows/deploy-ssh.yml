@@ -1,34 +1,11 @@
-# Despliegue continuo por SSH (patrón similar a pruebagitflow2026/.github/workflows/docker-image.yml).
-# Usuario SSH: secreto SSH_USER. Requiere Docker Engine en el servidor, acceso de ese usuario a Docker
-# (p. ej. grupo docker o rootless) y la clave pública de SSH_PRIVATE_KEY en ~/.ssh/authorized_keys del usuario.
-#
-# Secreto SSH_PRIVATE_KEY: debe ser la clave PRIVADA completa (varias líneas), por ejemplo:
-#   -----BEGIN OPENSSH PRIVATE KEY-----  o  -----BEGIN RSA PRIVATE KEY-----
-#   ...líneas base64...
-#   -----END ... PRIVATE KEY-----
-# NO pongas la línea "ssh-rsa AAAA..." (esa es la pública; va en ~/.ssh/authorized_keys del servidor).
-# En GitHub → Settings → Secrets → pega el archivo tal cual (con saltos de línea). Para CI suele usarse
-# una clave dedicada SIN frase de paso; si la clave tiene passphrase, añade el input `passphrase` en ambas actions.
-#
-# Secretos: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY.
-#
-# Si scp/ssh falla con "dial tcp …:22: i/o timeout", el runner no alcanza el servidor (red/firewall):
-# abre TCP 22 en el security group/ufw/iptables del VPS hacia internet, o permite los rangos "actions"
-# de https://api.github.com/meta (actualizar allowlist según documentación de GitHub).
-#
-# Variables del repo:
-# - INFRA_HOST: host/IP compartido de infra (mismo patrón que ms-logistic). docker-compose-dev.yml lo usa
-#   para RabbitMQ, OTLP (:4317) y Loki (:3100) vía Telemetry__OtlpEndpoint + Serilog__WriteTo__1__*.
-# - Opcionales: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL, LOKI_URL y SEQ_SERVER_URL
-#   para sobrescribir o complementar lo anterior.
-# RabbitMQ: credenciales y topología vía RABBITMQ_*; el host AMQP por defecto sigue INFRA_HOST.
+# Despliegue por SSH en push a master.
+# Secretos: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, INFRA_HOST
 
 name: Deploy SSH
 
 on:
-  pull_request:
-    branches: [ "master"]
-    types: [closed]
+  push:
+    branches: [master]
 
 concurrency:
   group: deploy-ssh-${{ github.ref }}
@@ -36,7 +13,6 @@ concurrency:
 
 jobs:
   build_and_test:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -59,17 +35,49 @@ jobs:
           --filter "FullyQualifiedName!~IntegrationTest&FullyQualifiedName!~ContractTest"
 
   release:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     needs: build_and_test
     steps:
+      - name: Validar secretos
+        env:
+          INFRA_HOST: ${{ secrets.INFRA_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${INFRA_HOST}" ]; then
+            echo "::error::El secreto INFRA_HOST es obligatorio."
+            exit 1
+          fi
+          if [ -z "${SSH_HOST}" ]; then
+            echo "::error::SSH_HOST está vacío."
+            exit 1
+          fi
+          if [ -z "${SSH_USER}" ]; then
+            echo "::error::SSH_USER está vacío."
+            exit 1
+          fi
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "::error::SSH_PRIVATE_KEY está vacío."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----BEGIN .+ PRIVATE KEY-----'; then
+            echo "::error::SSH_PRIVATE_KEY no parece una clave privada PEM/OpenSSH."
+            exit 1
+          fi
+          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----END .+ PRIVATE KEY-----'; then
+            echo "::error::Falta la línea -----END ... PRIVATE KEY-----."
+            exit 1
+          fi
+
       - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Crear archivo de despliegue
         run: |
-          git archive --format=tar.gz --output=deploy.tar.gz HEAD \
-            -- . ":(exclude)patient.test"
+          set -euo pipefail
+          git archive --format=tar.gz --output=deploy.tar.gz HEAD -- . ":(exclude)patient.test"
 
       - name: Configurar SSH
         env:
@@ -78,26 +86,6 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          if [ -z "${SSH_HOST}" ]; then
-            echo "::error::SSH_HOST está vacío. Crea el secreto en el repositorio."
-            exit 1
-          fi
-          if [ -z "${SSH_USER}" ]; then
-            echo "::error::SSH_USER está vacío. Crea el secreto en el repositorio."
-            exit 1
-          fi
-          if [ -z "${SSH_PRIVATE_KEY}" ]; then
-            echo "::error::SSH_PRIVATE_KEY está vacío. Crea el secreto en el repositorio."
-            exit 1
-          fi
-          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----BEGIN .+ PRIVATE KEY-----'; then
-            echo "::error::SSH_PRIVATE_KEY no parece una clave privada PEM/OpenSSH."
-            exit 1
-          fi
-          if ! printf '%s\n' "$SSH_PRIVATE_KEY" | grep -qE '^-----END .+ PRIVATE KEY-----'; then
-            echo "::error::Falta la línea -----END ... PRIVATE KEY----- (secreto truncado al pegar)."
-            exit 1
-          fi
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/id_ed25519"
@@ -106,61 +94,19 @@ jobs:
           chmod 644 "$HOME/.ssh/known_hosts"
 
       - name: Subir archivo al servidor
-        run: |
-          set -euo pipefail
-          scp -o StrictHostKeyChecking=yes \
-             deploy.tar.gz "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy.tar.gz"
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: scp -o StrictHostKeyChecking=yes deploy.tar.gz "${SSH_USER}@${SSH_HOST}:~/deploy.tar.gz"
 
       - name: Release via SSH
         env:
-          ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
-          API_PATIENT_IMAGE: ${{ vars.API_PATIENT_IMAGE }}
-          PATIENT_WORKER_IMAGE: ${{ vars.PATIENT_WORKER_IMAGE }}
-          INFRA_HOST: ${{ vars.INFRA_HOST }}
-          RABBITMQ_HOSTNAME: ${{ vars.RABBITMQ_HOSTNAME }}
-          RABBITMQ_PORT: ${{ vars.RABBITMQ_PORT }}
-          RABBITMQ_USERNAME: ${{ vars.RABBITMQ_USERNAME }}
-          RABBITMQ_PASSWORD: ${{ vars.RABBITMQ_PASSWORD }}
-          RABBITMQ_VIRTUALHOST: ${{ vars.RABBITMQ_VIRTUALHOST }}
-          RABBITMQ_FOODPLANS_EXCHANGE: ${{ vars.RABBITMQ_FOODPLANS_EXCHANGE }}
-          RABBITMQ_FOODPLANS_QUEUE: ${{ vars.RABBITMQ_FOODPLANS_QUEUE }}
-          RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY: ${{ vars.RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY }}
-          RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY: ${{ vars.RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY }}
-          RABBITMQ_PATIENTS_EXCHANGE: ${{ vars.RABBITMQ_PATIENTS_EXCHANGE }}
-          RABBITMQ_PATIENT_CREATED_ROUTING_KEY: ${{ vars.RABBITMQ_PATIENT_CREATED_ROUTING_KEY }}
-          RABBITMQ_PATIENT_UPDATED_ROUTING_KEY: ${{ vars.RABBITMQ_PATIENT_UPDATED_ROUTING_KEY }}
-          RABBITMQ_RECONNECT_DELAY_SECONDS: ${{ vars.RABBITMQ_RECONNECT_DELAY_SECONDS }}
-          RABBITMQ_MAX_RECONNECT_ATTEMPTS: ${{ vars.RABBITMQ_MAX_RECONNECT_ATTEMPTS }}
-          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          OTEL_EXPORTER_OTLP_PROTOCOL: ${{ vars.OTEL_EXPORTER_OTLP_PROTOCOL }}
-          LOKI_URL: ${{ vars.LOKI_URL }}
-          SEQ_SERVER_URL: ${{ vars.SEQ_SERVER_URL }}
+          INFRA_HOST: ${{ secrets.INFRA_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT}" \
-            API_PATIENT_IMAGE="${API_PATIENT_IMAGE}" \
-            PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE}" \
-            INFRA_HOST="${INFRA_HOST}" \
-            RABBITMQ_HOSTNAME="${RABBITMQ_HOSTNAME}" \
-            RABBITMQ_PORT="${RABBITMQ_PORT}" \
-            RABBITMQ_USERNAME="${RABBITMQ_USERNAME}" \
-            RABBITMQ_PASSWORD="${RABBITMQ_PASSWORD}" \
-            RABBITMQ_VIRTUALHOST="${RABBITMQ_VIRTUALHOST}" \
-            RABBITMQ_FOODPLANS_EXCHANGE="${RABBITMQ_FOODPLANS_EXCHANGE}" \
-            RABBITMQ_FOODPLANS_QUEUE="${RABBITMQ_FOODPLANS_QUEUE}" \
-            RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY}" \
-            RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY}" \
-            RABBITMQ_PATIENTS_EXCHANGE="${RABBITMQ_PATIENTS_EXCHANGE}" \
-            RABBITMQ_PATIENT_CREATED_ROUTING_KEY="${RABBITMQ_PATIENT_CREATED_ROUTING_KEY}" \
-            RABBITMQ_PATIENT_UPDATED_ROUTING_KEY="${RABBITMQ_PATIENT_UPDATED_ROUTING_KEY}" \
-            RABBITMQ_RECONNECT_DELAY_SECONDS="${RABBITMQ_RECONNECT_DELAY_SECONDS}" \
-            RABBITMQ_MAX_RECONNECT_ATTEMPTS="${RABBITMQ_MAX_RECONNECT_ATTEMPTS}" \
-            OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
-            OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL}" \
-            LOKI_URL="${LOKI_URL}" \
-            SEQ_SERVER_URL="${SEQ_SERVER_URL}" \
-            'bash -se' <<'EOF'
+          ssh -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" "export INFRA_HOST='${INFRA_HOST}'; bash -s" <<'REMOTE'
           set -euo pipefail
           DEPLOY_DIR="${HOME}/api_patient"
           mkdir -p "$DEPLOY_DIR"
@@ -168,37 +114,16 @@ jobs:
           tar xzf "${HOME}/deploy.tar.gz"
           rm -f "${HOME}/deploy.tar.gz"
           docker network create develop_nutricenter_net 2>/dev/null || true
-          export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
-          export API_PATIENT_IMAGE="${API_PATIENT_IMAGE:-api-patient:dev}"
-          export PATIENT_WORKER_IMAGE="${PATIENT_WORKER_IMAGE:-patient-worker:dev}"
-          export INFRA_HOST="${INFRA_HOST:-${RABBITMQ_HOSTNAME:-rabbitmq}}"
-          export RABBITMQ__HOSTNAME="${RABBITMQ_HOSTNAME:-${INFRA_HOST}}"
-          export RABBITMQ__PORT="${RABBITMQ_PORT:-5672}"
-          export RABBITMQ__USERNAME="${RABBITMQ_USERNAME:-admin}"
-          export RABBITMQ__PASSWORD="${RABBITMQ_PASSWORD:-StrongPassword123}"
-          export RABBITMQ__VIRTUALHOST="${RABBITMQ_VIRTUALHOST:-/}"
-          export RABBITMQ__FOODPLANS_EXCHANGE="${RABBITMQ_FOODPLANS_EXCHANGE:-meal-plans}"
-          export RABBITMQ__FOODPLANS_QUEUE="${RABBITMQ_FOODPLANS_QUEUE:-ms-patients-queue}"
-          export RABBITMQ__FOODPLAN_CREATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_CREATED_ROUTING_KEY:-meal-plan.created}"
-          export RABBITMQ__FOODPLAN_UPDATED_ROUTING_KEY="${RABBITMQ_FOODPLAN_UPDATED_ROUTING_KEY:-meal-plan.updated}"
-          export RABBITMQ__PATIENTS_EXCHANGE="${RABBITMQ_PATIENTS_EXCHANGE:-patients}"
-          export RABBITMQ__PATIENT_CREATED_ROUTING_KEY="${RABBITMQ_PATIENT_CREATED_ROUTING_KEY:-patient.created}"
-          export RABBITMQ__PATIENT_UPDATED_ROUTING_KEY="${RABBITMQ_PATIENT_UPDATED_ROUTING_KEY:-patient.updated}"
-          export RABBITMQ__RECONNECT_DELAY_SECONDS="${RABBITMQ_RECONNECT_DELAY_SECONDS:-5}"
-          export RABBITMQ__MAX_RECONNECT_ATTEMPTS="${RABBITMQ_MAX_RECONNECT_ATTEMPTS:-0}"
-          export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
-          export OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}"
-          export LOKI_URL="${LOKI_URL:-}"
-          export SEQ_SERVER_URL="${SEQ_SERVER_URL:-}"
-
-          docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" config >/dev/null
           docker compose -f "$DEPLOY_DIR/docker-compose-dev.yml" up -d --build --remove-orphans
-          EOF
+          REMOTE
 
-      - name: Monitoreo post-release (logs y healthcheck)
+      - name: Monitoreo post-release
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" 'bash -se' <<'EOF'
+          ssh -o StrictHostKeyChecking=yes "${SSH_USER}@${SSH_HOST}" 'bash -se' <<'REMOTE'
           set -uo pipefail
           echo "=== Docker status ==="
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
@@ -215,10 +140,10 @@ jobs:
           if [ "$health_ok" -eq 1 ]; then
             echo "Healthcheck reachable on localhost:5002/health/live"
           else
-            echo "::warning::Healthcheck no estable después de 12 intentos. Se muestran logs para diagnóstico."
+            echo "::warning::Healthcheck no estable después de 12 intentos."
           fi
           echo "=== API logs (tail 80) ==="
           docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 api-patient || true
           echo "=== Worker logs (tail 80) ==="
           docker compose -f "${HOME}/api_patient/docker-compose-dev.yml" logs --tail 80 patient-worker || true
-          EOF
+          REMOTE
