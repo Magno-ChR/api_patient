@@ -15,4 +15,8 @@
 		<ProjectReference Include="..\patient.domain\patient.domain.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="patient.test" />
+	</ItemGroup>
+
 </Project>

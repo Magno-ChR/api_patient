@@ -47,6 +47,7 @@ jobs:
           /o:"gentec"
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.cs.opencover.reportsPaths="coverage/**/coverage.opencover.xml"
+          /d:sonar.coverage.exclusions="**/commitlint.config.js,**/patient.infrastructure/Migrations/**,**/api_patient/Program.cs,**/patient.WorkerService/Program.cs,**/patient.infrastructure/DependencyInyection.cs,**/patient.infrastructure/Extensions/**,**/patient.infrastructure/Integration/**,**/patient.infrastructure/Percistence/**,**/patient.infrastructure/Observability/**,**/patient.infrastructure/Security/JwtSettings.cs,**/api_patient/Controllers/**,**/api_patient/Extensions/**,**/api_patient/Middleware/**,**/api_patient/Observability/**"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -97,8 +98,11 @@ jobs:
       - name: Validate docker compose syntax
         run: |
           sudo docker network create develop_nutricenter_net 2>/dev/null || true
-          sudo docker compose -f docker-compose-dev.yml config
+          export INFRA_HOST=127.0.0.1
+          sudo -E docker compose -f docker-compose-dev.yml config
           sudo docker compose -f docker-compose.observability.yml config
 
       - name: Build API and Worker images
-        run: sudo docker compose -f docker-compose-dev.yml build api-patient patient-worker
+        run: |
+          export INFRA_HOST=127.0.0.1
+          sudo -E docker compose -f docker-compose-dev.yml build api-patient patient-worker

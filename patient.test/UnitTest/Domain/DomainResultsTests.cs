@@ -37,4 +37,40 @@ public class DomainResultsTests
         Assert.Contains(validation.Errors, e => e.Code == "a");
         Assert.Contains(validation.Errors, e => e.Code == "b");
     }
+
+    [Fact]
+    public void Error_WithPlaceholders_ReplacesArgsInDescription()
+    {
+        var error = Error.Failure("x", "Hola {nombre}", "María");
+        Assert.Contains("María", error.Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Result_InvalidCombination_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => new Result(true, Error.Failure("c", "msg")));
+        Assert.Throws<ArgumentException>(() => new Result(false, Error.None));
+    }
+
+    [Fact]
+    public void ResultT_Value_OnFailure_ThrowsInvalidOperationException()
+    {
+        var r = Result.Failure<int>(Error.NotFound("n", "missing"));
+        Assert.Throws<InvalidOperationException>(() => _ = r.Value);
+    }
+
+    [Fact]
+    public void ResultT_ImplicitFromNull_IsFailureWithNullValueError()
+    {
+        Result<string> r = (string?)null;
+        Assert.True(r.IsFailure);
+        Assert.Equal(Error.NullValue, r.Error);
+    }
+
+    [Fact]
+    public void ValidationError_FromResults_WhenAllSuccess_ReturnsEmptyErrorsArray()
+    {
+        var v = ValidationError.FromResults([Result.Success(), Result.Success()]);
+        Assert.Empty(v.Errors);
+    }
 }
