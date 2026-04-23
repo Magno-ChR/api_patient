@@ -41,6 +41,13 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
     {
         try
         {
+            _logger.LogInformation(
+                "Publishing patient event to RabbitMQ. Exchange: {Exchange}, RoutingKey: {RoutingKey}, PatientId: {PatientId}, EventId: {EventId}",
+                _options.PatientsExchange,
+                routingKey,
+                payload.PatientId,
+                payload.Id);
+
             var factory = new ConnectionFactory
             {
                 HostName = _options.HostName,
@@ -55,6 +62,7 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
 
             var json = JsonSerializer.Serialize(payload, JsonOptions);
             var body = Encoding.UTF8.GetBytes(json);
+            _logger.LogDebug("RabbitMQ patient event payload: {Json}", json);
             using var activity = PatientTelemetry.ActivitySource.StartActivity("rabbitmq publish patient event", ActivityKind.Producer);
             activity?.SetTag("messaging.system", "rabbitmq");
             activity?.SetTag("messaging.destination.name", _options.PatientsExchange);
@@ -74,7 +82,6 @@ internal sealed class PatientEventRabbitMqPublisher : IPatientEventPublisher
             _logger.LogInformation(
                 "Patient event published to RabbitMQ. Exchange: {Exchange}, RoutingKey: {RoutingKey}, PatientId: {PatientId}, OccurredOn: {OccurredOn:O}",
                 _options.PatientsExchange, routingKey, payload.PatientId, payload.OccurredOn);
-            _logger.LogDebug("Patient event payload (JSON): {Json}", json);
         }
         catch (Exception ex)
         {
