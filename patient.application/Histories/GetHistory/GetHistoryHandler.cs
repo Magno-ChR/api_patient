@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace patient.application.Histories.GetHistory;
 
 public class GetHistoryHandler : IRequestHandler<GetHistoryCommand, Result<History>>,
-    IRequestHandler<GetHistoriesByPatientIdCommand, Result<IReadOnlyCollection<History>>>
+    IRequestHandler<GetHistoryListByPatientIdCommand, Result<List<History>>>
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -25,11 +25,11 @@ public class GetHistoryHandler : IRequestHandler<GetHistoryCommand, Result<Histo
         return Result.Success(history);
     }
 
-    public async Task<Result<IReadOnlyCollection<History>>> Handle(GetHistoriesByPatientIdCommand request, CancellationToken cancellationToken)
+    public async Task<Result<List<History>>> Handle(GetHistoryListByPatientIdCommand request, CancellationToken cancellationToken)
     {
         var histories = await _historyRepository.GetByPatientIdAsync(request.PatientId, readOnly: true);
         if (histories.Count < 1)
-            return Result.Failure<IReadOnlyCollection<History>>(Error.NotFound("History.NotFound", "No se encontraron historias para el paciente"));
+            return Result.Failure<List<History>>(Error.NotFound("History.NotFound", "No se encontraron historias para el paciente"));
 
         return Result.Success(histories);
     }

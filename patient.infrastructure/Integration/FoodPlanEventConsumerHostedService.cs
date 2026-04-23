@@ -128,6 +128,13 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
 
         try
         {
+            _logger.LogInformation(
+                "RabbitMQ message received. Queue: {Queue}, RoutingKey: {RoutingKey}, DeliveryTag: {DeliveryTag}",
+                _options.FoodPlansQueue,
+                routingKey,
+                ea.DeliveryTag);
+            _logger.LogDebug("RabbitMQ consumer body: {Body}", json);
+
             var dto = JsonSerializer.Deserialize<FoodPlanIntegrationEventDto>(json);
             if (dto is null)
             {
@@ -145,6 +152,11 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
                 Name = dto.Name
             };
             await mediator.Send(command);
+            _logger.LogInformation(
+                "RabbitMQ message processed successfully. Queue: {Queue}, RoutingKey: {RoutingKey}, FoodPlanId: {FoodPlanId}",
+                _options.FoodPlansQueue,
+                routingKey,
+                dto.FoodPlanId);
             Ack(ea);
         }
         catch (Exception ex)
@@ -169,11 +181,17 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
 
     private void Ack(BasicDeliverEventArgs ea)
     {
+        _logger.LogDebug("Ack RabbitMQ message. Queue: {Queue}, DeliveryTag: {DeliveryTag}", _options.FoodPlansQueue, ea.DeliveryTag);
         _channel?.BasicAck(ea.DeliveryTag, false);
     }
 
     private void Nack(BasicDeliverEventArgs ea, bool requeue)
     {
+        _logger.LogWarning(
+            "Nack RabbitMQ message. Queue: {Queue}, DeliveryTag: {DeliveryTag}, Requeue: {Requeue}",
+            _options.FoodPlansQueue,
+            ea.DeliveryTag,
+            requeue);
         _channel?.BasicNack(ea.DeliveryTag, false, requeue);
     }
 

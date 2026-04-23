@@ -6,7 +6,7 @@ namespace patient.domain.Entities.Histories
 {
     public interface IHistoryRepository : IRepository<History>
     {
-        Task<IReadOnlyCollection<History>> GetByPatientIdAsync(Guid patientId, bool readOnly = false);
+        Task<List<History>> GetByPatientIdAsync(Guid patientId, bool readOnly = false);
         Task UpdateAsync(History history);
     }
 }
