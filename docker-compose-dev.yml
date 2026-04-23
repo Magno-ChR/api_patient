@@ -55,7 +55,7 @@ services:
       Consul__ServiceName: api-patient
       # Dirección que Consul usará para el HTTP check. Si Consul corre en otro servidor que esta API,
       # cambia "api-patient" por la IP/DNS del host donde publicas el puerto 5002 (alcanzable desde Consul).
-      Consul__ServiceAddress: api-patient
+      Consul__ServiceAddress: 167.71.109.119
       Consul__ServicePort: "5002"
     ports:
       - "5002:5002"
