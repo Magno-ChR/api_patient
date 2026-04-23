@@ -1,5 +1,6 @@
 using Joseco.Outbox.Contracts.Model;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using patient.domain.Abstractions;
 using patient.domain.Entities.Patients.Events;
 using patient.infrastructure.Percistence.DomainModel;
@@ -16,21 +17,33 @@ public sealed class PatientDomainEventsToOutboxHandler :
     INotificationHandler<PatientUpdatedEvent>
 {
     private readonly DomainDbContext _dbContext;
+    private readonly ILogger<PatientDomainEventsToOutboxHandler> _logger;
 
-    public PatientDomainEventsToOutboxHandler(DomainDbContext dbContext)
+    public PatientDomainEventsToOutboxHandler(
+        DomainDbContext dbContext,
+        ILogger<PatientDomainEventsToOutboxHandler> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public Task Handle(PatientCreatedEvent notification, CancellationToken cancellationToken)
     {
         _dbContext.OutboxMessages.Add(new OutboxMessage<DomainEvent>(notification));
+        _logger.LogInformation(
+            "PatientCreatedEvent persisted to outbox. EventId: {EventId}, PatientId: {PatientId}",
+            notification.Id,
+            notification.Patient.Id);
         return Task.CompletedTask;
     }
 
     public Task Handle(PatientUpdatedEvent notification, CancellationToken cancellationToken)
     {
         _dbContext.OutboxMessages.Add(new OutboxMessage<DomainEvent>(notification));
+        _logger.LogInformation(
+            "PatientUpdatedEvent persisted to outbox. EventId: {EventId}, PatientId: {PatientId}",
+            notification.Id,
+            notification.Patient.Id);
         return Task.CompletedTask;
     }
 }

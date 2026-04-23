@@ -15,11 +15,13 @@ internal class UnitOfWork : IUnitOfWork
 {
     private readonly DomainDbContext context;
     private readonly IMediator mediator;
+    private readonly ILogger<UnitOfWork> logger;
 
-    public UnitOfWork( DomainDbContext context, IMediator mediator)
+    public UnitOfWork(DomainDbContext context, IMediator mediator, ILogger<UnitOfWork> logger)
     {
         this.context = context;
         this.mediator = mediator;
+        this.logger = logger;
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
@@ -39,13 +41,20 @@ internal class UnitOfWork : IUnitOfWork
             .SelectMany(domainEvents => domainEvents)
             .ToList();
 
+        logger.LogInformation("UnitOfWork collected {DomainEventsCount} domain events before commit", domainEvents.Count);
+
         //Publish Domain Events
         foreach (var domainEvent in domainEvents)
         {
+            logger.LogInformation(
+                "Publishing domain event through MediatR. EventType: {EventType}, EventId: {EventId}",
+                domainEvent.GetType().FullName,
+                domainEvent.Id);
             await mediator.Publish(domainEvent, cancellationToken);
         }
 
 
         await context.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("UnitOfWork commit completed successfully");
     }
 }
