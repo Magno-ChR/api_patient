@@ -113,6 +113,33 @@ public class HistoryHandlerTest
     }
 
     [Fact]
+    public async Task Handle_GetHistoriesByPatientIdCommand_IsValid()
+    {
+        // Arrange
+        var patientId = Guid.NewGuid();
+        var histories = new List<History>
+        {
+            new(Guid.NewGuid(), patientId, Guid.NewGuid(), "R1", "D1", "T1"),
+            new(Guid.NewGuid(), patientId, Guid.NewGuid(), "R2", "D2", "T2")
+        };
+
+        var repoMock = new Mock<IHistoryRepository>();
+        var uowMock = new Mock<IUnitOfWork>();
+
+        repoMock.Setup(r => r.GetByPatientIdAsync(patientId, true))
+                .ReturnsAsync(histories);
+
+        var handler = new GetHistoryHandler(repoMock.Object, uowMock.Object);
+
+        // Act
+        var result = await handler.Handle(new GetHistoriesByPatientIdCommand(patientId), CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.Count);
+    }
+
+    [Fact]
     public async Task Handle_UpdateHistoryCommand_IsValid()
     {
         // Arrange
