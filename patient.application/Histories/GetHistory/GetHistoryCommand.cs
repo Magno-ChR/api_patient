@@ -7,4 +7,4 @@ namespace patient.application.Histories.GetHistory;
 
 public record GetHistoryCommand(Guid HistoryId) : IRequest<Result<History>>;
 
-public record GetHistoriesByPatientIdCommand(Guid PatientId) : IRequest<Result<IReadOnlyCollection<History>>>;
+public record GetHistoryListByPatientIdCommand(Guid PatientId) : IRequest<Result<List<History>>>;

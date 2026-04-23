@@ -45,7 +45,7 @@ internal class HistoryRepository : IHistoryRepository
         }
     }
 
-    public async Task<IReadOnlyCollection<History>> GetByPatientIdAsync(Guid patientId, bool readOnly = false)
+    public async Task<List<History>> GetByPatientIdAsync(Guid patientId, bool readOnly = false)
     {
         var query = context.Histories
             .Include("_backgrounds")

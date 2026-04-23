@@ -113,7 +113,7 @@ public class HistoryHandlerTest
     }
 
     [Fact]
-    public async Task Handle_GetHistoriesByPatientIdCommand_IsValid()
+    public async Task Handle_GetHistoryListByPatientIdCommand_IsValid()
     {
         // Arrange
         var patientId = Guid.NewGuid();
@@ -132,7 +132,7 @@ public class HistoryHandlerTest
         var handler = new GetHistoryHandler(repoMock.Object, uowMock.Object);
 
         // Act
-        var result = await handler.Handle(new GetHistoriesByPatientIdCommand(patientId), CancellationToken.None);
+        var result = await handler.Handle(new GetHistoryListByPatientIdCommand(patientId), CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
