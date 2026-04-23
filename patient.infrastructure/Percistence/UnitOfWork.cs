@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using patient.domain.Abstractions;
 using patient.infrastructure.Percistence.DomainModel;
 using System;
