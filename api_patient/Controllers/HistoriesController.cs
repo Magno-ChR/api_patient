@@ -25,6 +25,10 @@ namespace api_patient.Controllers
         public async Task<IActionResult> GetHistory([FromQuery] GetHistoryCommand request)
             => this.HandleResult(await mediator.Send(request));
 
+        [HttpGet("GetByPatientId")]
+        public async Task<IActionResult> GetHistoriesByPatientId([FromQuery] GetHistoriesByPatientIdCommand request)
+            => this.HandleResult(await mediator.Send(request));
+
         [HttpPost]
         public async Task<IActionResult> CreateHistory([FromBody] CreateHistoryCommand request)
             => this.HandleResult(await mediator.Send(request));

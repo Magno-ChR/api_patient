@@ -7,11 +7,7 @@ using patient.domain.Entities.Histories.Events;
 using patient.domain.Entities.Patients;
 using patient.domain.Entities.Patients.Events;
 using patient.infrastructure.Percistence.DomainModel;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace patient.infrastructure.Percistence.Repositories;
 
@@ -47,6 +43,23 @@ internal class HistoryRepository : IHistoryRepository
                 .Include("_evolutions")
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
+    }
+
+    public async Task<IReadOnlyCollection<History>> GetByPatientIdAsync(Guid patientId, bool readOnly = false)
+    {
+        var query = context.Histories
+            .Include("_backgrounds")
+            .Include("_evolutions")
+            .Where(i => i.PatientId == patientId);
+
+        if (readOnly)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query
+            .OrderByDescending(i => i.EntryDate)
+            .ToListAsync();
     }
 
     public Task UpdateAsync(History entity)

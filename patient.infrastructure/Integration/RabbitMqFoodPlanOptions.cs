@@ -1,6 +1,6 @@
 namespace patient.infrastructure.Integration;
 
-/// <summary>Opciones de RabbitMQ para consumir eventos meal-plan (cola ms-patients-queue de ms-infrastructure).</summary>
+/// <summary>Opciones de RabbitMQ para consumir eventos meal-plan (cola ms-meal-plans-queue de ms-infrastructure).</summary>
 public sealed class RabbitMqFoodPlanOptions
 {
     public const string SectionName = "RabbitMQ";
@@ -18,8 +18,8 @@ public sealed class RabbitMqFoodPlanOptions
 
     /// <summary>Exchange definido en ms-infrastructure (meal-plans). Solo referencia; no se declara.</summary>
     public string FoodPlansExchange { get; set; } = "meal-plans";
-    /// <summary>Cola definida en ms-infrastructure para ms-patient. No crear; solo consumir.</summary>
-    public string FoodPlansQueue { get; set; } = "ms-patients-queue";
+    /// <summary>Cola definida en ms-infrastructure para meal-plans. No crear; solo consumir.</summary>
+    public string FoodPlansQueue { get; set; } = "ms-meal-plans-queue";
     public string FoodPlanCreatedRoutingKey { get; set; } = "meal-plan.created";
     public string FoodPlanUpdatedRoutingKey { get; set; } = "meal-plan.updated";
 }
