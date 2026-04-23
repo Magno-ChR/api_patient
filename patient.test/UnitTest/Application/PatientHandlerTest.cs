@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using patient.application.Patients.CreatePatient;
 using patient.application.Patients.DeletePatient;
 using patient.application.Patients.GetPatient;
@@ -19,7 +20,7 @@ public class PatientHandlerTest
         // Arrange
         var patientRepositoryMock = new Mock<IPatientRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
-        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object);
+        var handler = new CreatePatientHandler(patientRepositoryMock.Object, unitOfWorkMock.Object, NullLogger<CreatePatientHandler>.Instance);
         var createPatientCommand = new CreatePatientCommand("Jhon", "M", "Doe", BloodType.OPositive, "123456789", new DateOnly(1990, 1, 1), "Engineer", "None", "Peanuts");
 
         // Act
@@ -58,7 +59,8 @@ public class PatientHandlerTest
 
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
-            unitOfWorkMock.Object
+            unitOfWorkMock.Object,
+            NullLogger<CreatePatientHandler>.Instance
         );
 
         var command = new CreatePatientContactCommand(
@@ -108,7 +110,8 @@ public class PatientHandlerTest
 
         var handler = new CreatePatientHandler(
             patientRepositoryMock.Object,
-            unitOfWorkMock.Object
+            unitOfWorkMock.Object,
+            NullLogger<CreatePatientHandler>.Instance
         );
 
         var command = new CreatePatientContactCommand(
