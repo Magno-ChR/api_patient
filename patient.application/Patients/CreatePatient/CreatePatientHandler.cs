@@ -4,6 +4,7 @@ using patient.domain.Entities.Contacts;
 using patient.domain.Entities.Patients;
 using patient.domain.Entities.Patients.Events;
 using patient.domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace patient.application.Patients.CreatePatient;
 
@@ -12,13 +13,16 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 {
     private readonly IPatientRepository _patientRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CreatePatientHandler> _logger;
 
     public CreatePatientHandler(
         IPatientRepository patientRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<CreatePatientHandler> logger)
     {
         _patientRepository = patientRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<Result<Guid>> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
@@ -36,14 +40,25 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
             request.Alergies
         );
 
+        _logger.LogInformation(
+            "Creating patient aggregate. PatientId: {PatientId}, DocumentNumber: {DocumentNumber}",
+            item.Id,
+            item.DocumentNumber);
+
         await _patientRepository.AddAsync(item);
 
         // Patrón Outbox al estilo ms-logistic:
         // el agregado solo agrega un DomainEvent; la infraestructura se encarga de
         // convertirlo en un mensaje de outbox y el Worker lo publicará a RabbitMQ.
         item.AddDomainEvent(new PatientCreatedEvent(item.ToOutboxPayload()));
+        _logger.LogInformation(
+            "PatientCreatedEvent appended to aggregate. PatientId: {PatientId}, PendingDomainEvents: {DomainEventsCount}",
+            item.Id,
+            item.DomainEvents.Count);
 
         await _unitOfWork.CommitAsync(cancellationToken);
+
+        _logger.LogInformation("Patient committed successfully. PatientId: {PatientId}", item.Id);
 
         return Result.Success(item.Id);
     }
