@@ -24,6 +24,7 @@ internal sealed class SyncFoodPlanFromIntegrationHandler : IRequestHandler<SyncF
     public async Task<Unit> Handle(SyncFoodPlanFromIntegrationCommand request, CancellationToken cancellationToken)
     {
         var name = request.Name ?? string.Empty;
+        var patientId = request.PatientId;
 
         if (request.IsCreated)
         {
@@ -33,9 +34,9 @@ internal sealed class SyncFoodPlanFromIntegrationHandler : IRequestHandler<SyncF
                 _logger.LogInformation("FoodPlan {FoodPlanId} already exists, skipping create", request.FoodPlanId);
                 return Unit.Value;
             }
-            var foodPlan = FoodPlan.Create(request.FoodPlanId, name);
+            var foodPlan = FoodPlan.Create(request.FoodPlanId, patientId, name);
             await _foodPlanRepository.AddAsync(foodPlan);
-            _logger.LogInformation("FoodPlan created from integration: {FoodPlanId}", request.FoodPlanId);
+            _logger.LogInformation("FoodPlan created from integration: {FoodPlanId}, PatientId: {PatientId}", request.FoodPlanId, patientId);
         }
         else
         {
@@ -43,14 +44,14 @@ internal sealed class SyncFoodPlanFromIntegrationHandler : IRequestHandler<SyncF
             if (foodPlan is null)
             {
                 _logger.LogWarning("FoodPlan {FoodPlanId} not found for update, creating as new", request.FoodPlanId);
-                foodPlan = FoodPlan.Create(request.FoodPlanId, name);
+                foodPlan = FoodPlan.Create(request.FoodPlanId, patientId, name);
                 await _foodPlanRepository.AddAsync(foodPlan);
             }
             else
             {
-                foodPlan.UpdateDetails(name);
+                foodPlan.UpdateDetails(name, patientId);
             }
-            _logger.LogInformation("FoodPlan updated from integration: {FoodPlanId}", request.FoodPlanId);
+            _logger.LogInformation("FoodPlan updated from integration: {FoodPlanId}, PatientId: {PatientId}", request.FoodPlanId, patientId);
         }
 
         await _unitOfWork.CommitAsync(cancellationToken);

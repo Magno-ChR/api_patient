@@ -143,20 +143,42 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
                 return;
             }
 
+            if (dto.EffectiveFoodPlanId == Guid.Empty)
+            {
+                _logger.LogInformation(
+                    "Ignoring RabbitMQ message on meal-plans queue because it is not a food-plan payload. RoutingKey: {RoutingKey}, Body: {Body}",
+                    routingKey,
+                    json);
+                Ack(ea);
+                return;
+            }
+
+            var formattedName = dto.ToFoodPlanName();
+            _logger.LogInformation(
+                "Meal-plan event mapped. PlanId: {PlanId}, PatientId: {PatientId}, NutritionistId: {NutritionistId}, StartDate: {StartDate}, DurationDays: {DurationDays}, DietCount: {DietCount}, Name: {Name}",
+                dto.EffectiveFoodPlanId,
+                dto.PatientId,
+                dto.NutritionistId,
+                dto.StartDate,
+                dto.DurationDays,
+                dto.DietCount,
+                formattedName);
+
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             var command = new SyncFoodPlanFromIntegrationCommand
             {
-                FoodPlanId = dto.FoodPlanId,
+                FoodPlanId = dto.EffectiveFoodPlanId,
+                PatientId = dto.PatientId,
                 IsCreated = isCreated,
-                Name = dto.Name
+                Name = formattedName
             };
             await mediator.Send(command);
             _logger.LogInformation(
                 "RabbitMQ message processed successfully. Queue: {Queue}, RoutingKey: {RoutingKey}, FoodPlanId: {FoodPlanId}",
                 _options.FoodPlansQueue,
                 routingKey,
-                dto.FoodPlanId);
+                dto.EffectiveFoodPlanId);
             Ack(ea);
         }
         catch (Exception ex)
