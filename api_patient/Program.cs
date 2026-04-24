@@ -18,12 +18,16 @@ using Prometheus;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Grafana.Loki;
+using System.Security.Claims;
 using System.Text.Json;
+using patient.infrastructure.Logging;
 
 namespace api_patient
 {
 	public class Program
 	{
+		private const string CorsPolicyName = "ApiPatientCors";
+
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
@@ -41,7 +45,8 @@ namespace api_patient
 				loggerConfiguration
 					.ReadFrom.Configuration(context.Configuration)
 					.ReadFrom.Services(services)
-					.Enrich.FromLogContext();
+					.Enrich.FromLogContext()
+					.WriteTo.Console(new ReadableJsonConsoleFormatter());
 
 				var lokiUri = context.Configuration["Loki:Uri"];
 				if (!string.IsNullOrWhiteSpace(lokiUri) &&
@@ -55,6 +60,25 @@ namespace api_patient
 			});
 
 			builder.Services.AddControllers();
+			builder.Services.AddCors(options =>
+			{
+				options.AddPolicy(CorsPolicyName, policy =>
+				{
+					if (builder.Environment.IsDevelopment())
+					{
+						policy
+							.AllowAnyOrigin()
+							.AllowAnyHeader()
+							.AllowAnyMethod();
+						return;
+					}
+
+					policy
+						.WithOrigins("http://localhost:5003", "https://localhost:7134")
+						.AllowAnyHeader()
+						.AllowAnyMethod();
+				});
+			});
 			builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
 			builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -128,10 +152,25 @@ namespace api_patient
 				x.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
 			});
 
-			app.UseHttpsRedirection();
+			if (!app.Environment.IsDevelopment())
+			{
+				app.UseHttpsRedirection();
+			}
+
 			app.UseSerilogRequestLogging(options =>
 			{
 				options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} -> {StatusCode} ({Elapsed:0.0} ms)";
+				options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+				{
+					diagnosticContext.Set("ClientIp", httpContext.Connection.RemoteIpAddress?.ToString());
+
+					var userId =
+						httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+						httpContext.User.FindFirst("uid")?.Value;
+
+					if (!string.IsNullOrWhiteSpace(userId))
+						diagnosticContext.Set("UserId", userId);
+				};
 				options.GetLevel = (httpContext, elapsed, ex) =>
 				{
 					if (ex != null || httpContext.Response.StatusCode >= 500)
@@ -150,6 +189,7 @@ namespace api_patient
 				};
 			});
 			app.UseHttpMetrics();
+			app.UseCors(CorsPolicyName);
 			app.ApplyMigrations();
 			app.UseAuthentication();
 			app.UseAuthorization();

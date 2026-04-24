@@ -47,12 +47,11 @@ public class CreatePatientHandler : IRequestHandler<CreatePatientCommand, Result
 
         await _patientRepository.AddAsync(item);
 
-        // Patrón Outbox al estilo ms-logistic:
-        // el agregado solo agrega un DomainEvent; la infraestructura se encarga de
-        // convertirlo en un mensaje de outbox y el Worker lo publicará a RabbitMQ.
+        // El UnitOfWork publica este evento al exchange "patients" tras confirmar
+        // la persistencia en la base de datos.
         item.AddDomainEvent(new PatientCreatedEvent(item.ToOutboxPayload()));
         _logger.LogInformation(
-            "PatientCreatedEvent appended to aggregate. PatientId: {PatientId}, PendingDomainEvents: {DomainEventsCount}",
+            "PatientCreatedEvent appended to aggregate for direct RabbitMQ publication. PatientId: {PatientId}, PendingDomainEvents: {DomainEventsCount}",
             item.Id,
             item.DomainEvents.Count);
 

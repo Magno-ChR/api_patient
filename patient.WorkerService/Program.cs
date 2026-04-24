@@ -1,11 +1,10 @@
-using Joseco.Outbox.EFCore;
 using Microsoft.Extensions.Configuration;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using patient.application;
-using patient.domain.Abstractions;
 using patient.infrastructure;
+using patient.infrastructure.Logging;
 using patient.infrastructure.Observability;
 using Serilog;
 using Serilog.Sinks.Grafana.Loki;
@@ -38,7 +37,8 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
 	loggerConfiguration
 		.ReadFrom.Configuration(builder.Configuration)
 		.ReadFrom.Services(services)
-		.Enrich.FromLogContext();
+		.Enrich.FromLogContext()
+		.WriteTo.Console(new ReadableJsonConsoleFormatter());
 
 	var lokiUri = builder.Configuration["Loki:Uri"];
 	if (!string.IsNullOrWhiteSpace(lokiUri) &&
@@ -75,8 +75,6 @@ builder.Services.AddOpenTelemetry()
 		    Uri.TryCreate(otlpEndpoint.Trim(), UriKind.Absolute, out var otlpUri))
 			metrics.AddOtlpExporter(o => o.Endpoint = otlpUri);
 	});
-
-builder.Services.AddOutboxBackgroundService<DomainEvent>(5000);
 
 var host = builder.Build();
 
