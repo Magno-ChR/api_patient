@@ -15,9 +15,23 @@ public class FoodPlanAndEntityTests
 	[Fact]
 	public void FoodPlan_UpdateDetails_WithNullName_NormalizesToEmpty()
 	{
-		var plan = FoodPlan.Create(Guid.NewGuid(), "A");
-		plan.UpdateDetails(null!);
+		var patientId = Guid.NewGuid();
+		var plan = FoodPlan.Create(Guid.NewGuid(), patientId, "A");
+		plan.UpdateDetails(null!, patientId);
 		Assert.Equal(string.Empty, plan.Name);
+	}
+
+	[Fact]
+	public void FoodPlan_UpdateDetails_UpdatesPatientId()
+	{
+		var originalPatientId = Guid.NewGuid();
+		var newPatientId = Guid.NewGuid();
+		var plan = FoodPlan.Create(Guid.NewGuid(), originalPatientId, "A");
+
+		plan.UpdateDetails("B", newPatientId);
+
+		Assert.Equal("B", plan.Name);
+		Assert.Equal(newPatientId, plan.PatientId);
 	}
 
 	[Fact]

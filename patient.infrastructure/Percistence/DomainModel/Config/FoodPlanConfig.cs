@@ -18,6 +18,9 @@ internal class FoodPlanConfig : IEntityTypeConfiguration<FoodPlan>
         builder.Property(p => p.Id)
             .HasColumnName("FoodPlanId");
 
+        builder.Property(p => p.PatientId)
+            .HasColumnName("PatientId");
+
         builder.Ignore("_domainEvents");
         builder.Ignore(x => x.DomainEvents);
     }

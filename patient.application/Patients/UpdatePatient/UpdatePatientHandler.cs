@@ -41,9 +41,8 @@ public class UpdatePatientHandler : IRequestHandler<UpdatePatientCommand, Result
 
         await _patientRepository.UpdateAsync(patient);
 
-        // Patrón Outbox al estilo ms-logistic:
-        // solo se agrega un DomainEvent y la infraestructura lo persiste en outbox
-        // y el Worker lo publicará posteriormente a RabbitMQ.
+        // El UnitOfWork publica este evento al exchange "patients" tras confirmar
+        // la persistencia en la base de datos.
         patient.AddDomainEvent(new PatientUpdatedEvent(patient.ToOutboxPayload()));
 
         await _unitOfWork.CommitAsync(cancellationToken);

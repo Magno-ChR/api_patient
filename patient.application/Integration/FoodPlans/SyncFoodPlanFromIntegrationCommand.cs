@@ -6,6 +6,7 @@ namespace patient.application.Integration.FoodPlans;
 public sealed class SyncFoodPlanFromIntegrationCommand : IRequest<Unit>
 {
     public Guid FoodPlanId { get; init; }
+    public Guid PatientId { get; init; }
     public bool IsCreated { get; init; }
     public string? Name { get; init; }
 }

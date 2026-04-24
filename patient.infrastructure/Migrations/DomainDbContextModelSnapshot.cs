@@ -178,6 +178,10 @@ namespace patient.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("PatientId");
+
                     b.HasKey("Id")
                         .HasName("FoodPlanId");
 
