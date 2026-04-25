@@ -59,7 +59,7 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
                 };
                 _connection = factory.CreateConnection();
                 _channel = _connection.CreateModel();
-                // Exchange "meal-plans" y cola "ms-meal-plans-queue" (y bindings) ya existen en ms-infrastructure; no declarar.
+                // Exchange "meal-plans" y cola "ms-patients-queue" (y bindings) ya existen en ms-infrastructure; no declarar.
 
                 var consumer = new AsyncEventingBasicConsumer(_channel);
                 consumer.Received += (_, ea) => ProcessMessageAsync(ea);

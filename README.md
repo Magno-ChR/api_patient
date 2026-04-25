@@ -96,8 +96,8 @@ Con **`INFRA_HOST`**, `docker-compose-dev.yml` define entre otras:
 Supuestos por defecto de RabbitMQ (editables en el YAML del repo si tu broker usa otra topología):
 
 - La app publica eventos de pacientes al exchange `patients`.
-- El worker consume eventos de planes alimentarios desde la cola `ms-meal-plans-queue`.
-- Los routing keys esperados son `patient.created`, `patient.updated`, `meal-plan.created` y `meal-plan.updated`.
+- El worker consume eventos de planes alimentarios desde la cola `ms-patients-queue`.
+- El único routing key de `meal-plans` que procesa este servicio es `meal-plan.plan`; los demás se aceptan y se ignoran.
 
 Observabilidad externa:
 
