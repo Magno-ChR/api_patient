@@ -2,8 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace patient.infrastructure.Integration;
 
-/// <summary>DTO del evento de integración (meal-plan.created / meal-plan.updated).
-/// Soporta tanto el contrato anterior como el payload real publicado por el servicio de planes.</summary>
+/// <summary>DTO del evento de integración del servicio de planes.
+/// Soporta el payload real publicado por meal-plans y un formato legado con FoodPlanId/Name.</summary>
 internal sealed class FoodPlanIntegrationEventDto
 {
     [JsonPropertyName("PlanId")]
@@ -24,8 +24,11 @@ internal sealed class FoodPlanIntegrationEventDto
     [JsonPropertyName("Duracion")]
     public int? DurationDays { get; set; }
 
+    [JsonPropertyName("Requerido")]
+    public bool? IsRequired { get; set; }
+
     [JsonPropertyName("Dietas")]
-    public List<object>? Diets { get; set; }
+    public List<FoodPlanDietDto>? Diets { get; set; }
 
     [JsonPropertyName("Id")]
     public Guid Id { get; set; }
@@ -49,6 +52,8 @@ internal sealed class FoodPlanIntegrationEventDto
 
     public int DietCount => Diets?.Count ?? 0;
 
+    public int RecipeCount => Diets?.Sum(diet => diet.Recipes?.Count ?? 0) ?? 0;
+
     public string ToFoodPlanName()
     {
         if (!string.IsNullOrWhiteSpace(Name))
@@ -62,6 +67,10 @@ internal sealed class FoodPlanIntegrationEventDto
             parts.Add($"{DurationDays} dias");
 
         parts.Add($"{DietCount} dietas");
+        if (RecipeCount > 0)
+            parts.Add($"{RecipeCount} recetas");
+        if (IsRequired.HasValue)
+            parts.Add(IsRequired.Value ? "requerido" : "opcional");
 
         if (parts.Count == 0)
             parts.Add($"Plan {EffectiveFoodPlanId}");
@@ -71,4 +80,28 @@ internal sealed class FoodPlanIntegrationEventDto
 
     private static string TrimToMaxLength(string value, int maxLength = 100) =>
         value.Length <= maxLength ? value : value[..maxLength];
+}
+
+internal sealed class FoodPlanDietDto
+{
+    [JsonPropertyName("DietaId")]
+    public Guid DietId { get; set; }
+
+    [JsonPropertyName("FechaConsumo")]
+    public DateTime? ConsumptionDate { get; set; }
+
+    [JsonPropertyName("Recetas")]
+    public List<FoodPlanRecipeDto>? Recipes { get; set; }
+}
+
+internal sealed class FoodPlanRecipeDto
+{
+    [JsonPropertyName("RecetaId")]
+    public Guid RecipeId { get; set; }
+
+    [JsonPropertyName("Orden")]
+    public int? Order { get; set; }
+
+    [JsonPropertyName("TiempoId")]
+    public int? TimeId { get; set; }
 }
