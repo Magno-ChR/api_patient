@@ -49,7 +49,9 @@ services:
       RabbitMQ__ReconnectDelaySeconds: "5"
       RabbitMQ__MaxReconnectAttempts: "0"
       OTEL_SERVICE_NAME: api-patient
+      Telemetry__ServiceName: api-patient
       Telemetry__OtlpEndpoint: http://${INFRA_HOST:?INFRA_HOST is required}:4317
+      Telemetry__OtlpProtocol: Grpc
       Loki__Uri: http://${INFRA_HOST:?INFRA_HOST is required}:3100
       Consul__Host: http://${INFRA_HOST:?INFRA_HOST is required}:8500
       Consul__ServiceName: api-patient
@@ -91,7 +93,9 @@ services:
       RabbitMQ__ReconnectDelaySeconds: "5"
       RabbitMQ__MaxReconnectAttempts: "0"
       OTEL_SERVICE_NAME: patient-worker
+      Telemetry__ServiceName: patient-worker
       Telemetry__OtlpEndpoint: http://${INFRA_HOST:?INFRA_HOST is required}:4317
+      Telemetry__OtlpProtocol: Grpc
       Loki__Uri: http://${INFRA_HOST:?INFRA_HOST is required}:3100
     depends_on:
       patient-postgres:
