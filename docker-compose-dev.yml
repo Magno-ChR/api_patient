@@ -41,6 +41,7 @@ services:
       RabbitMQ__VirtualHost: /
       RabbitMQ__FoodPlansExchange: meal-plans
       RabbitMQ__FoodPlansQueue: ms-meal-plans-queue
+      RabbitMQ__FoodPlanRoutingKey: meal-plan.plan
       RabbitMQ__FoodPlanCreatedRoutingKey: meal-plan.created
       RabbitMQ__FoodPlanUpdatedRoutingKey: meal-plan.updated
       RabbitMQ__PatientsExchange: patients
@@ -85,6 +86,7 @@ services:
       RabbitMQ__VirtualHost: /
       RabbitMQ__FoodPlansExchange: meal-plans
       RabbitMQ__FoodPlansQueue: ms-meal-plans-queue
+      RabbitMQ__FoodPlanRoutingKey: meal-plan.plan
       RabbitMQ__FoodPlanCreatedRoutingKey: meal-plan.created
       RabbitMQ__FoodPlanUpdatedRoutingKey: meal-plan.updated
       RabbitMQ__PatientsExchange: patients

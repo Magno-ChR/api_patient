@@ -15,7 +15,7 @@ using RabbitMQ.Client.Exceptions;
 
 namespace patient.infrastructure.Integration;
 
-/// <summary>Consume los eventos foodplan.created y foodplan.updated desde RabbitMQ y sincroniza en la tabla FoodPlan.</summary>
+/// <summary>Consume eventos desde RabbitMQ y sincroniza en la tabla FoodPlan solo cuando llega la routing key canónica del plan.</summary>
 internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
 {
     private readonly ILogger<FoodPlanEventConsumerHostedService> _logger;
@@ -112,7 +112,6 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
     private async Task ProcessMessageAsync(BasicDeliverEventArgs ea)
     {
         var routingKey = ea.RoutingKey;
-        var isCreated = string.Equals(routingKey, _options.FoodPlanCreatedRoutingKey, StringComparison.Ordinal);
         var body = ea.Body.ToArray();
         var json = Encoding.UTF8.GetString(body);
         var parentContext = PatientTelemetry.Propagator.Extract(default, ea.BasicProperties, ExtractTraceContextFromBasicProperties);
@@ -134,6 +133,16 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
                 routingKey,
                 ea.DeliveryTag);
             _logger.LogDebug("RabbitMQ consumer body: {Body}", json);
+
+            if (!string.Equals(routingKey, _options.FoodPlanRoutingKey, StringComparison.Ordinal))
+            {
+                _logger.LogInformation(
+                    "Ignoring RabbitMQ message on meal-plans queue because routing key is not processable by patient service. RoutingKey: {RoutingKey}, ExpectedRoutingKey: {ExpectedRoutingKey}",
+                    routingKey,
+                    _options.FoodPlanRoutingKey);
+                Ack(ea);
+                return;
+            }
 
             var dto = JsonSerializer.Deserialize<FoodPlanIntegrationEventDto>(json);
             if (dto is null)
@@ -170,7 +179,8 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
             {
                 FoodPlanId = dto.EffectiveFoodPlanId,
                 PatientId = dto.PatientId,
-                IsCreated = isCreated,
+                // meal-plan.plan se trata como upsert: si ya existe, se actualiza; si no, se crea.
+                IsCreated = false,
                 Name = formattedName
             };
             await mediator.Send(command);

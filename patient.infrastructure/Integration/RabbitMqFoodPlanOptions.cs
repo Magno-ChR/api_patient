@@ -20,6 +20,9 @@ public sealed class RabbitMqFoodPlanOptions
     public string FoodPlansExchange { get; set; } = "meal-plans";
     /// <summary>Cola definida en ms-infrastructure para meal-plans. No crear; solo consumir.</summary>
     public string FoodPlansQueue { get; set; } = "ms-meal-plans-queue";
+    /// <summary>Routing key canónica del evento de plan que este servicio sí procesa.</summary>
+    public string FoodPlanRoutingKey { get; set; } = "meal-plan.plan";
+    /// <summary>Routing keys heredadas que pueden seguir llegando a la cola, pero que se ignoran.</summary>
     public string FoodPlanCreatedRoutingKey { get; set; } = "meal-plan.created";
     public string FoodPlanUpdatedRoutingKey { get; set; } = "meal-plan.updated";
 }
