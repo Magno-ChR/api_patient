@@ -164,13 +164,15 @@ internal sealed class FoodPlanEventConsumerHostedService : BackgroundService
 
             var formattedName = dto.ToFoodPlanName();
             _logger.LogInformation(
-                "Meal-plan event mapped. PlanId: {PlanId}, PatientId: {PatientId}, NutritionistId: {NutritionistId}, StartDate: {StartDate}, DurationDays: {DurationDays}, DietCount: {DietCount}, Name: {Name}",
+                "Meal-plan event mapped. PlanId: {PlanId}, PatientId: {PatientId}, NutritionistId: {NutritionistId}, StartDate: {StartDate}, DurationDays: {DurationDays}, DietCount: {DietCount}, RecipeCount: {RecipeCount}, IsRequired: {IsRequired}, Name: {Name}",
                 dto.EffectiveFoodPlanId,
                 dto.PatientId,
                 dto.NutritionistId,
                 dto.StartDate,
                 dto.DurationDays,
                 dto.DietCount,
+                dto.RecipeCount,
+                dto.IsRequired,
                 formattedName);
 
             using var scope = _scopeFactory.CreateScope();
