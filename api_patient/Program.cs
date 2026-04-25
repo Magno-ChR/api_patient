@@ -9,10 +9,12 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using patient.infrastructure;
+using patient.infrastructure.Logging;
 using patient.infrastructure.Observability;
 using Prometheus;
 using Serilog;
@@ -20,7 +22,6 @@ using Serilog.Events;
 using Serilog.Sinks.Grafana.Loki;
 using System.Security.Claims;
 using System.Text.Json;
-using patient.infrastructure.Logging;
 
 namespace api_patient
 {
@@ -31,7 +32,18 @@ namespace api_patient
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
-			var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? "api-patient";
+			var serviceName =
+				builder.Configuration["Telemetry:ServiceName"] ??
+				builder.Configuration["OTEL_SERVICE_NAME"] ??
+				"api-patient";
+			var tracesOtlpEndpoint = builder.Configuration["Telemetry:OtlpEndpoint"];
+			var tracesOtlpProtocol = ResolveOtlpProtocol(
+				builder.Configuration["Telemetry:OtlpProtocol"],
+				tracesOtlpEndpoint);
+			var metricsOtlpEndpoint = builder.Configuration["Telemetry:MetricsOtlpEndpoint"];
+			var metricsOtlpProtocol = ResolveOtlpProtocol(
+				builder.Configuration["Telemetry:MetricsOtlpProtocol"],
+				metricsOtlpEndpoint);
 
 			builder.Logging.Configure(options =>
 			{
@@ -82,27 +94,38 @@ namespace api_patient
 			builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ResultFormatMiddleware>();
 			builder.Services.AddInfrastructure(builder.Configuration);
 
-			var otlpEndpoint = builder.Configuration["Telemetry:OtlpEndpoint"];
 			builder.Services.AddOpenTelemetry()
 				.ConfigureResource(resource => resource.AddService(serviceName))
 				.WithTracing(tracing =>
 				{
 					tracing
-						.AddAspNetCoreInstrumentation()
-						.AddHttpClientInstrumentation()
+						.AddAspNetCoreInstrumentation(options => options.RecordException = true)
+						.AddHttpClientInstrumentation(options => options.RecordException = true)
 						.AddSource(PatientTelemetry.ActivitySourceName);
-					if (!string.IsNullOrWhiteSpace(otlpEndpoint) &&
-					    Uri.TryCreate(otlpEndpoint.Trim(), UriKind.Absolute, out var otlpUri))
-						tracing.AddOtlpExporter(o => o.Endpoint = otlpUri);
+					if (!string.IsNullOrWhiteSpace(tracesOtlpEndpoint) &&
+					    Uri.TryCreate(tracesOtlpEndpoint.Trim(), UriKind.Absolute, out var tracesOtlpUri))
+					{
+						tracing.AddOtlpExporter(options =>
+						{
+							options.Endpoint = tracesOtlpUri;
+							options.Protocol = tracesOtlpProtocol;
+						});
+					}
 				})
 				.WithMetrics(metrics =>
 				{
 					metrics.AddAspNetCoreInstrumentation();
 					metrics.AddHttpClientInstrumentation();
 					metrics.AddRuntimeInstrumentation();
-					if (!string.IsNullOrWhiteSpace(otlpEndpoint) &&
-					    Uri.TryCreate(otlpEndpoint.Trim(), UriKind.Absolute, out var otlpUri))
-						metrics.AddOtlpExporter(o => o.Endpoint = otlpUri);
+					if (!string.IsNullOrWhiteSpace(metricsOtlpEndpoint) &&
+					    Uri.TryCreate(metricsOtlpEndpoint.Trim(), UriKind.Absolute, out var metricsOtlpUri))
+					{
+						metrics.AddOtlpExporter(options =>
+						{
+							options.Endpoint = metricsOtlpUri;
+							options.Protocol = metricsOtlpProtocol;
+						});
+					}
 				});
 
 			builder.Services
@@ -195,6 +218,7 @@ namespace api_patient
 			app.UseAuthorization();
 
 			app.Logger.LogInformation("API Patient started with Serilog and OpenTelemetry");
+			LogTelemetryConfiguration(app.Logger, serviceName, tracesOtlpEndpoint, tracesOtlpProtocol, metricsOtlpEndpoint, metricsOtlpProtocol);
 
 			app.MapHealthChecks("/health/live", new HealthCheckOptions
 			{
@@ -229,6 +253,58 @@ namespace api_patient
 			};
 
 			return context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+		}
+
+		private static OtlpExportProtocol ResolveOtlpProtocol(string? configuredProtocol, string? endpoint)
+		{
+			if (!string.IsNullOrWhiteSpace(configuredProtocol) &&
+			    Enum.TryParse<OtlpExportProtocol>(configuredProtocol, ignoreCase: true, out var protocol))
+			{
+				return protocol;
+			}
+
+			if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 4318)
+				return OtlpExportProtocol.HttpProtobuf;
+
+			return OtlpExportProtocol.Grpc;
+		}
+
+		private static void LogTelemetryConfiguration(
+			Microsoft.Extensions.Logging.ILogger logger,
+			string serviceName,
+			string? tracesOtlpEndpoint,
+			OtlpExportProtocol tracesOtlpProtocol,
+			string? metricsOtlpEndpoint,
+			OtlpExportProtocol metricsOtlpProtocol)
+		{
+			if (!string.IsNullOrWhiteSpace(tracesOtlpEndpoint))
+			{
+				logger.LogInformation(
+					"OpenTelemetry traces exporter enabled. ServiceName: {ServiceName}, Endpoint: {Endpoint}, Protocol: {Protocol}",
+					serviceName,
+					tracesOtlpEndpoint,
+					tracesOtlpProtocol);
+			}
+			else
+			{
+				logger.LogWarning(
+					"OpenTelemetry traces exporter disabled because Telemetry:OtlpEndpoint is not configured. ServiceName: {ServiceName}",
+					serviceName);
+			}
+
+			if (!string.IsNullOrWhiteSpace(metricsOtlpEndpoint))
+			{
+				logger.LogInformation(
+					"OpenTelemetry metrics exporter enabled. ServiceName: {ServiceName}, Endpoint: {Endpoint}, Protocol: {Protocol}",
+					serviceName,
+					metricsOtlpEndpoint,
+					metricsOtlpProtocol);
+				return;
+			}
+
+			logger.LogInformation(
+				"OpenTelemetry metrics exporter disabled. Prometheus scraping remains available on /metrics. ServiceName: {ServiceName}",
+				serviceName);
 		}
 	}
 }
